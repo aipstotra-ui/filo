@@ -1,0 +1,13 @@
+/* Filo marketing site — base styles.
+   Extracted verbatim from the approved design prototype's <helmet><style> blocks.
+   Self-contained: system font stack only, no external fonts or resources. */
+
+html, body { margin: 0; padding: 0; }
+* { box-sizing: border-box; }
+::selection { background: #2997ff; color: #fff; }
+a { color: inherit; text-decoration: none; }
+a.filolink { color: #2997ff; }
+a.filolink:hover { text-decoration: underline; }
+
+@keyframes filospin { to { transform: rotate(360deg); } }
+@keyframes filoglow { 0%, 100% { opacity: .5; } 50% { opacity: .85; } }

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M4 mockup — Folders settings &amp; destination lines</title>
+<style>
+  /* ————— Design tokens (mirrored in docs/design-system.md) ————— */
+  body {
+    --accent:        #007AFF;
+    --label-1:       rgba(0,0,0,0.85);
+    --label-2:       rgba(0,0,0,0.50);
+    --label-3:       rgba(0,0,0,0.28);
+    --sep:           rgba(0,0,0,0.08);
+    --warning-text:  #B25000;
+    --error-text:    #D70015;
+    --window-bg:     #F5F4F5;
+    --content-bg:    #FFFFFF;
+    --menu-bg:       rgba(248,248,248,0.80);
+    --menubar-bg:    rgba(255,255,255,0.55);
+    --menubar-press: rgba(0,0,0,0.14);
+    --btn-bg:        #FFFFFF;
+    --btn-border:    rgba(0,0,0,0.16);
+    --tab-active:    rgba(0,0,0,0.07);
+    --privacy-bg:    rgba(0,122,255,0.06);
+    --page-bg:       #ECEBEA;
+    --desk:          linear-gradient(135deg,#B4C8E4 0%,#C9BBDB 55%,#DCC4CF 100%);
+    --shadow-win:    0 18px 50px rgba(0,0,0,0.28), 0 0 0 0.5px rgba(0,0,0,0.15);
+    --shadow-menu:   0 10px 34px rgba(0,0,0,0.25), 0 0 0 0.5px rgba(0,0,0,0.12);
+  }
+  body.dark {
+    --accent:        #0A84FF;
+    --label-1:       rgba(255,255,255,0.86);
+    --label-2:       rgba(255,255,255,0.55);
+    --label-3:       rgba(255,255,255,0.28);
+    --sep:           rgba(255,255,255,0.10);
+    --warning-text:  #FFB340;
+    --error-text:    #FF6961;
+    --window-bg:     #2A2A2C;
+    --content-bg:    rgba(255,255,255,0.055);
+    --menu-bg:       rgba(44,44,48,0.72);
+    --menubar-bg:    rgba(30,30,34,0.55);
+    --menubar-press: rgba(255,255,255,0.22);
+    --btn-bg:        #656569;
+    --btn-border:    rgba(255,255,255,0.06);
+    --tab-active:    rgba(255,255,255,0.11);
+    --privacy-bg:    rgba(10,132,255,0.13);
+    --page-bg:       #1C1C1E;
+    --desk:          linear-gradient(135deg,#242E48 0%,#33284A 55%,#3E2B40 100%);
+    --shadow-win:    0 18px 50px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.12);
+    --shadow-menu:   0 10px 34px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.10);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: var(--page-bg);
+    color: var(--label-1);
+    padding: 32px 24px 64px;
+    transition: background 0.2s ease;
+  }
+
+  /* ————— Page scaffolding (not part of the app UI) ————— */
+  .page-head { max-width: 980px; margin: 0 auto 8px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  .page-head h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .page-head .sub { font-size: 12px; color: var(--label-2); }
+  .toggle { margin-left:auto; display:flex; background: var(--tab-active); border-radius: 7px; padding: 2px; }
+  .toggle button {
+    font: inherit; font-size: 12px; color: var(--label-2);
+    border: none; background: transparent; padding: 3px 14px; border-radius: 5px; cursor: pointer;
+  }
+  .toggle button.active { background: var(--content-bg); color: var(--label-1); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .note { max-width: 980px; margin: 0 auto 28px; font-size: 12px; color: var(--label-2); }
+
+  section { max-width: 980px; margin: 0 auto 44px; }
+  section > h2 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  section > p.lede { font-size: 12px; color: var(--label-2); margin-bottom: 14px; }
+  .annot { font-size: 12px; color: var(--label-2); margin-top: 12px; line-height: 1.55; padding-left: 18px; }
+  .annot li { margin-bottom: 2px; }
+
+  .desk {
+    background: var(--desk);
+    border-radius: 14px;
+    padding: 0 0 44px;
+    overflow: hidden;
+    display: flex; flex-wrap: wrap; gap: 36px;
+    justify-content: center; align-items: flex-start;
+  }
+  .desk .stage { padding-top: 40px; }
+
+  /* ————— Menu bar strip ————— */
+  .menubar {
+    flex-basis: 100%; height: 26px;
+    background: var(--menubar-bg);
+    -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 14px; gap: 12px;
+    font-size: 12px; color: var(--label-1);
+  }
+  .menubar .appglyph {
+    display:flex; align-items:center; padding: 2px 7px; border-radius: 5px;
+    background: var(--menubar-press);
+  }
+  .menubar svg { display:block; }
+
+  /* ————— The dropdown menu ————— */
+  .menu {
+    width: 300px;
+    background: var(--menu-bg);
+    -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+    border-radius: 12px;
+    box-shadow: var(--shadow-menu);
+    padding: 5px;
+    font-size: 13px;
+  }
+  .menu .mrow { padding: 4px 10px; border-radius: 6px; }
+  .menu .msep { height: 1px; background: var(--sep); margin: 5px 10px; }
+  .menu .status { color: var(--label-1); }
+  .menu .fname { color: var(--label-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu .cap  { font-size: 11px; color: var(--label-2); margin-top: 1px; }
+  .menu .dest { font-size: 11px; color: var(--label-1); margin-top: 2px; display:flex; align-items:center; gap:4px; }
+  .menu .dest .arrow { color: var(--label-2); }
+  .menu .dest .fico { width: 13px; height: 11px; }
+  .menu .nomatch { font-size: 11px; color: var(--label-2); margin-top: 2px; }
+  .menu .hint { font-size: 11px; color: var(--label-2); }
+  .menu .item { color: var(--label-1); cursor: default; }
+  .menu .item:hover { background: var(--accent); color: #fff; }
+  .menu .filecell { padding-top: 5px; padding-bottom: 5px; }
+
+  /* ————— Settings window ————— */
+  .window {
+    width: 620px; max-width: 100%;
+    background: var(--window-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow-win);
+    overflow: hidden;
+  }
+  .titlebar { position: relative; padding: 10px 0 0; }
+  .lights { position: absolute; left: 12px; top: 12px; display: flex; gap: 8px; }
+  .lights span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.15); }
+  .lights .r { background: #FF5F57; } .lights .y { background: #FEBC2E; } .lights .g { background: #28C840; }
+  .titlebar .wtitle { text-align: center; font-size: 13px; font-weight: 600; padding-bottom: 8px; }
+  .tabs { display: flex; justify-content: center; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--sep); }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 11px; color: var(--label-2);
+    padding: 4px 12px; border-radius: 7px; min-width: 58px;
+  }
+  .tab svg { color: var(--label-2); }
+  .tab.active { background: var(--tab-active); color: var(--label-1); }
+  .tab.active svg { color: var(--accent); }
+
+  .pane { padding: 18px 20px 20px; }
+  .pane .intro { font-size: 12px; color: var(--label-2); line-height: 1.45; margin-bottom: 12px; }
+  .privacy {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--privacy-bg);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 12px; color: var(--label-1); line-height: 1.4;
+    margin-bottom: 14px;
+  }
+  .privacy svg { flex: none; color: var(--accent); }
+  .privacy em { font-style: italic; }
+
+  .flist {
+    background: var(--content-bg);
+    border: 1px solid var(--sep);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .frow { display: flex; align-items: center; gap: 11px; padding: 9px 12px; }
+  .frow + .frow { border-top: 1px solid var(--sep); }
+  .frow .fico { width: 26px; height: 21px; flex: none; }
+  .frow.missing .fico { filter: grayscale(1); opacity: 0.45; }
+  .frow .ftext { min-width: 0; flex: 1; }
+  .frow .l1 { font-size: 13px; color: var(--label-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .frow .l1 .path { font-size: 11px; color: var(--label-3); margin-left: 7px; }
+  .frow .l2 { font-size: 11px; color: var(--label-2); margin-top: 1px; display: flex; align-items: center; gap: 5px; }
+  .frow .l2.warn { color: var(--warning-text); }
+  .frow .l2.warn .learn { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--warning-text) 45%, transparent); cursor: pointer; }
+  .frow .l2.err { color: var(--error-text); }
+  .ractions { display: flex; gap: 2px; flex: none; }
+  .iconbtn {
+    width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px;
+    color: var(--label-2); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .iconbtn:hover { background: var(--tab-active); color: var(--label-1); }
+
+  .listfoot { display: flex; align-items: center; margin-top: 12px; }
+  .pushbtn {
+    font: inherit; font-size: 13px; color: var(--label-1);
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 6px;
+    padding: 3px 12px;
+    box-shadow: 0 0.5px 1.5px rgba(0,0,0,0.12);
+    cursor: pointer;
+  }
+  .listfoot .count { margin-left: auto; font-size: 11px; color: var(--label-3); }
+
+  .spinner {
+    width: 11px; height: 11px; flex: none;
+    border: 1.5px solid var(--label-3); border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ————— Empty state ————— */
+  .empty { text-align: center; padding: 34px 48px 8px; }
+  .empty .bigico { width: 46px; height: 38px; opacity: 0.9; margin-bottom: 10px; }
+  .empty h3 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .empty p { font-size: 12px; color: var(--label-2); line-height: 1.5; max-width: 400px; margin: 0 auto 14px; }
+  .empty .privacy { text-align: left; max-width: 420px; margin: 0 auto 16px; }
+  .empty .pushbtn { margin-bottom: 8px; }
+
+  .caption { flex-basis:100%; text-align:center; font-size:11px; color:#fff; opacity:0.75; margin-top:-24px; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+</style>
+</head>
+<body>
+
+<!-- shared folder-icon gradient -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="foldg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#74B9FF"/><stop offset="1" stop-color="#3E8EF0"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="page-head">
+  <h1>M4 — Folders &amp; destinations</h1>
+  <span class="sub">mockup for approval · nothing here is live</span>
+  <div class="toggle">
+    <button data-theme="light" class="active">Light</button>
+    <button data-theme="dark">Dark</button>
+  </div>
+</div>
+<p class="note">M4 never moves a file. Everything below only <strong>shows</strong> a suggested destination — moving comes later, and only on your explicit accept.</p>
+
+<!-- ============ 1 · MENU DROPDOWN ============ -->
+<section>
+  <h2>1 · Menu-bar dropdown — destination lines</h2>
+  <p class="lede">The existing dropdown, extended. Left: folders configured. Right: no folders configured yet.</p>
+  <div class="desk">
+    <div class="menubar">
+      <span class="appglyph">
+        <svg width="16" height="13" viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z"/></svg>
+      </span>
+      <span>Fri 18 Jul&nbsp; 09:41</span>
+    </div>
+
+    <!-- Variant A: folders configured -->
+    <div class="stage">
+      <div class="menu">
+        <div class="mrow status">Watching Downloads</div>
+        <div class="msep"></div>
+        <div class="mrow filecell">
+          <div class="fname">acme-invoice-final(3).pdf&nbsp; ·&nbsp; 212 KB</div>
+          <div class="cap">PDF text · 214 words</div>
+          <div class="cap">Suggested: 2026-06 Acme invoice.pdf</div>
+          <div class="dest"><span class="arrow">→</span>
+            <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+            Invoices</div>
+        </div>
+        <div class="mrow filecell">
+          <div class="fname">Screenshot 09.12.44.png&nbsp; ·&nbsp; 1.4 MB</div>
+          <div class="cap">OCR · 46 words</div>
+          <div class="cap">Suggested: Whiteboard sprint notes.png</div>
+          <div class="nomatch">No folder fits — leaving it in Downloads</div>
+        </div>
+        <div class="msep"></div>
+        <div class="mrow item">Choose folders…</div>
+        <div class="mrow item">Quit AI File Organizer</div>
+      </div>
+    </div>
+
+    <!-- Variant B: zero folders configured -->
+    <div class="stage">
+      <div class="menu">
+        <div class="mrow status">Watching Downloads</div>
+        <div class="msep"></div>
+        <div class="mrow filecell">
+          <div class="fname">rent-receipt-june.pdf&nbsp; ·&nbsp; 88 KB</div>
+          <div class="cap">PDF text · 132 words</div>
+          <div class="cap">Suggested: 2026-06 Rent receipt.pdf</div>
+        </div>
+        <div class="mrow hint">No target folders yet — destinations appear once you choose folders</div>
+        <div class="msep"></div>
+        <div class="mrow item">Choose folders…</div>
+        <div class="mrow item">Quit AI File Organizer</div>
+      </div>
+    </div>
+
+    <div class="caption">A — destination shown, and an honest no-match &nbsp;·&nbsp; B — quiet hint when no folders are set</div>
+  </div>
+  <ul class="annot">
+    <li>The destination is one extra small line: an arrow, the real blue folder icon, the folder name. No badge, no color shout.</li>
+    <li>When nothing matches well, the app says so plainly — it never pretends to have an answer.</li>
+    <li>“Choose folders…” opens the Settings window below. It sits above Quit, styled like every other menu item.</li>
+  </ul>
+</section>
+
+<!-- ============ 2 · SETTINGS, FOLDERS PANE ============ -->
+<section>
+  <h2>2 · Settings — Folders pane</h2>
+  <p class="lede">Where the user picks which folders the app may suggest. Shows all four row states at once.</p>
+  <div class="desk">
+    <div class="stage">
+      <div class="window">
+        <div class="titlebar">
+          <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div class="wtitle">Settings</div>
+          <div class="tabs">
+            <div class="tab">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="4.6" stroke-width="2.4" stroke-dasharray="2.4 2.4"/><circle cx="8" cy="8" r="1.9" stroke-width="1.4"/></svg>
+              General
+            </div>
+            <div class="tab active">
+              <svg width="18" height="15" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="currentColor"/></svg>
+              Folders
+            </div>
+          </div>
+        </div>
+        <div class="pane">
+          <p class="intro">The app can suggest one of these folders as a destination for a new download. It only ever suggests — nothing is moved.</p>
+          <div class="privacy">
+            <svg width="15" height="17" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M8 1.5l6 2.2v4.5c0 3.9-2.4 6.7-6 8.3-3.6-1.6-6-4.4-6-8.3V3.7L8 1.5z"/><path d="M5.5 8.8l1.8 1.8 3.2-3.4" stroke-linecap="round"/></svg>
+            <span>To learn what a folder holds, the app reads its file names and briefly looks inside a few files. Nothing leaves your Mac.</span>
+          </div>
+          <div class="flist">
+            <div class="frow">
+              <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+              <div class="ftext">
+                <div class="l1">Invoices<span class="path">~/Documents/Invoices</span></div>
+                <div class="l2">Indexed · 34 files, 3 read</div>
+              </div>
+              <div class="ractions">
+                <button class="iconbtn" title="Rescan"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13.2 8A5.2 5.2 0 1 1 11 3.8"/><path d="M11 1.3v2.9h2.9" stroke-linejoin="round"/></svg></button>
+                <button class="iconbtn" title="Remove"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="8" x2="12" y2="8"/></svg></button>
+              </div>
+            </div>
+            <div class="frow">
+              <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+              <div class="ftext">
+                <div class="l1">Receipts<span class="path">~/Documents/Receipts</span></div>
+                <div class="l2"><span class="spinner"></span>Scanning…</div>
+              </div>
+              <div class="ractions">
+                <button class="iconbtn" title="Rescan"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13.2 8A5.2 5.2 0 1 1 11 3.8"/><path d="M11 1.3v2.9h2.9" stroke-linejoin="round"/></svg></button>
+                <button class="iconbtn" title="Remove"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="8" x2="12" y2="8"/></svg></button>
+              </div>
+            </div>
+            <div class="frow">
+              <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+              <div class="ftext">
+                <div class="l1">Tax 2026<span class="path">~/Documents/Tax 2026</span></div>
+                <div class="l2 warn">Can’t access — <span class="learn">click to learn why</span></div>
+              </div>
+              <div class="ractions">
+                <button class="iconbtn" title="Rescan"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13.2 8A5.2 5.2 0 1 1 11 3.8"/><path d="M11 1.3v2.9h2.9" stroke-linejoin="round"/></svg></button>
+                <button class="iconbtn" title="Remove"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="8" x2="12" y2="8"/></svg></button>
+              </div>
+            </div>
+            <div class="frow missing">
+              <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+              <div class="ftext">
+                <div class="l1">Old Projects<span class="path">~/Archive/Old Projects</span></div>
+                <div class="l2 err">Folder missing</div>
+              </div>
+              <div class="ractions">
+                <button class="iconbtn" title="Rescan"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13.2 8A5.2 5.2 0 1 1 11 3.8"/><path d="M11 1.3v2.9h2.9" stroke-linejoin="round"/></svg></button>
+                <button class="iconbtn" title="Remove"><svg width="14" height="14" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="8" x2="12" y2="8"/></svg></button>
+              </div>
+            </div>
+          </div>
+          <div class="listfoot">
+            <button class="pushbtn">Add Folder…</button>
+            <span class="count">4 folders</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">All four row states: indexed · scanning · can’t access · missing</div>
+  </div>
+  <ul class="annot">
+    <li>Each row: blue folder icon, name, dimmed path, then one small status line. The two quiet icon buttons on the right are Rescan and Remove.</li>
+    <li>“Can’t access” is amber and clickable — it opens a short plain-language explanation with a Grant Access step. “Folder missing” stays in the list (dimmed icon) so the user can remove it or rescan after restoring it.</li>
+    <li>The privacy line sits above the list in a soft blue box — visible every time this pane opens, never buried in fine print.</li>
+    <li>“Add Folder…” opens the standard macOS folder picker.</li>
+  </ul>
+</section>
+
+<!-- ============ 3 · EMPTY STATE ============ -->
+<section>
+  <h2>3 · Settings — Folders pane, empty state</h2>
+  <p class="lede">First open, before any folder is chosen.</p>
+  <div class="desk">
+    <div class="stage">
+      <div class="window">
+        <div class="titlebar">
+          <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div class="wtitle">Settings</div>
+          <div class="tabs">
+            <div class="tab">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="4.6" stroke-width="2.4" stroke-dasharray="2.4 2.4"/><circle cx="8" cy="8" r="1.9" stroke-width="1.4"/></svg>
+              General
+            </div>
+            <div class="tab active">
+              <svg width="18" height="15" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="currentColor"/></svg>
+              Folders
+            </div>
+          </div>
+        </div>
+        <div class="pane">
+          <div class="empty">
+            <svg class="bigico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+            <h3>No target folders yet</h3>
+            <p>Choose the folders where your files usually end up — like Invoices or Receipts. When a new download fits one, its suggestion will include that folder as a destination. Nothing is moved.</p>
+            <div class="privacy">
+              <svg width="15" height="17" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M8 1.5l6 2.2v4.5c0 3.9-2.4 6.7-6 8.3-3.6-1.6-6-4.4-6-8.3V3.7L8 1.5z"/><path d="M5.5 8.8l1.8 1.8 3.2-3.4" stroke-linecap="round"/></svg>
+              <span>To learn what a folder holds, the app reads its file names and briefly looks inside a few files. Nothing leaves your Mac.</span>
+            </div>
+            <button class="pushbtn">Add Folder…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Empty state — explains the feature in two sentences, one clear action</div>
+  </div>
+  <ul class="annot">
+    <li>Two sentences, one button. The privacy promise appears here too, before the user commits to anything.</li>
+  </ul>
+</section>
+
+<script>
+  const btns = document.querySelectorAll('.toggle button');
+  btns.forEach(b => b.addEventListener('click', () => {
+    document.body.classList.toggle('dark', b.dataset.theme === 'dark');
+    btns.forEach(x => x.classList.toggle('active', x === b));
+  }));
+</script>
+</body>
+</html>

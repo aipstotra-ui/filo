@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+.DS_Store
+
+# Volatile per-user Obsidian state (vault config in .obsidian/ stays tracked)
+.obsidian/workspace.json
+.obsidian/graph.json

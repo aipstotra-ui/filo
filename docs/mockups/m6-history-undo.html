@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M6 mockup — Move history &amp; undo (revision 3)</title>
+<style>
+  /* ═══════════════════════════════════════════════════════════════════
+     Design tokens — mirrored in docs/design-system.md.
+     The reds and ambers here are the macOS *Increased Contrast* system
+     values, printed as hex ONLY so this page renders in a browser.
+     In Swift they must be `.systemRed` / `.systemOrange` (semantic), never
+     a hardcoded hex — see section 7.
+     ═══════════════════════════════════════════════════════════════════ */
+  body {
+    --accent:        #007AFF;
+    --label-1:       rgba(0,0,0,0.85);
+    --label-2:       rgba(0,0,0,0.50);
+    --label-3:       rgba(0,0,0,0.28);
+    --sep:           rgba(0,0,0,0.08);
+    --sep-strong:    rgba(0,0,0,0.11);
+    --warning-text:  #C93400;   /* stands in for .systemOrange */
+    --error-text:    #D70015;   /* stands in for .systemRed */
+    --window-bg:     #F5F4F5;
+    --content-bg:    #FFFFFF;
+    --menu-bg:       rgba(246,246,246,0.78);
+    --menubar-bg:    rgba(255,255,255,0.55);
+    --menubar-press: rgba(0,0,0,0.14);
+    --btn-bg:        #FFFFFF;
+    --btn-hover:     #EFEFEF;
+    --btn-border:    rgba(0,0,0,0.16);
+    --tab-active:    rgba(0,0,0,0.07);
+    --privacy-bg:    rgba(0,122,255,0.06);
+    --page-bg:       #ECEBEA;
+    --page-head-bg:  rgba(236,235,234,0.88);
+    --desk:          linear-gradient(135deg,#B4C8E4 0%,#C9BBDB 55%,#DCC4CF 100%);
+    --tray-bg:       #E6E4E1;
+    --field-bg:      #FFFFFF;
+    --field-border:  rgba(0,0,0,0.18);
+    --focus-ring:    rgba(0,122,255,0.32);
+    --accept-shadow: 0 0.5px 1px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.24);
+    --shadow-win:    0 18px 50px rgba(0,0,0,0.28), 0 0 0 0.5px rgba(0,0,0,0.15);
+    --shadow-menu:   0 10px 34px rgba(0,0,0,0.25), 0 0 0 0.5px rgba(0,0,0,0.12);
+    --scrim:         rgba(0,0,0,0.16);
+    --scrollthumb:   rgba(0,0,0,0.24);
+  }
+  body.dark {
+    --accent:        #0A84FF;
+    --label-1:       rgba(255,255,255,0.88);
+    --label-2:       rgba(255,255,255,0.55);
+    --label-3:       rgba(255,255,255,0.28);
+    --sep:           rgba(255,255,255,0.10);
+    --sep-strong:    rgba(255,255,255,0.13);
+    --warning-text:  #FFB340;
+    --error-text:    #FF6961;
+    --window-bg:     #2A2A2C;
+    --content-bg:    rgba(255,255,255,0.055);
+    --menu-bg:       rgba(44,44,48,0.72);
+    --menubar-bg:    rgba(30,30,34,0.55);
+    --menubar-press: rgba(255,255,255,0.22);
+    --btn-bg:        #656569;
+    --btn-hover:     #737377;
+    --btn-border:    rgba(255,255,255,0.06);
+    --tab-active:    rgba(255,255,255,0.11);
+    --privacy-bg:    rgba(10,132,255,0.13);
+    --page-bg:       #1C1C1E;
+    --page-head-bg:  rgba(28,28,30,0.88);
+    --desk:          linear-gradient(135deg,#242E48 0%,#33284A 55%,#3E2B40 100%);
+    --tray-bg:       #1E1D20;
+    --field-bg:      rgba(255,255,255,0.05);
+    --field-border:  rgba(255,255,255,0.14);
+    --focus-ring:    rgba(10,132,255,0.45);
+    --accept-shadow: 0 0.5px 1px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.16);
+    --shadow-win:    0 18px 50px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.12);
+    --shadow-menu:   0 10px 34px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.10);
+    --scrim:         rgba(0,0,0,0.38);
+    --scrollthumb:   rgba(255,255,255,0.28);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: var(--page-bg);
+    color: var(--label-1);
+    padding: 0 24px 90px;
+    transition: background 0.2s ease;
+  }
+
+  /* ————— Page scaffolding (not part of the app UI) ————— */
+  .page-head {
+    position: sticky; top: 0; z-index: 30;
+    max-width: 1120px; margin: 0 auto; padding: 18px 0 12px;
+    display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+    background: var(--page-head-bg);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .page-head h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .page-head .sub { font-size: 12px; color: var(--label-2); }
+  .toggle { margin-left:auto; display:flex; background: var(--tab-active); border-radius: 7px; padding: 2px; }
+  .toggle button {
+    font: inherit; font-size: 12px; color: var(--label-2);
+    border: none; background: transparent; padding: 3px 14px; border-radius: 5px; cursor: pointer;
+  }
+  .toggle button.active { background: var(--content-bg); color: var(--label-1); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .note { max-width: 1120px; margin: 8px auto 26px; font-size: 12.5px; color: var(--label-2); line-height: 1.65; }
+  .note strong { color: var(--label-1); font-weight: 600; }
+
+  .whatschanged { max-width: 1120px; margin: 0 auto 34px; background: var(--content-bg); border-radius: 10px;
+    padding: 15px 18px; font-size: 12px; line-height: 1.65; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+  body.dark .whatschanged { box-shadow: none; }
+  .whatschanged h3 { font-size: 12px; font-weight: 700; margin-bottom: 7px; letter-spacing: 0.2px; }
+  .whatschanged ol { padding-left: 18px; color: var(--label-2); }
+  .whatschanged li { margin-bottom: 4px; }
+  .whatschanged li b { color: var(--label-1); font-weight: 600; }
+
+  section { max-width: 1120px; margin: 0 auto 54px; }
+  section > h2 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  section > p.lede { font-size: 12px; color: var(--label-2); margin-bottom: 16px; line-height: 1.6; max-width: 880px; }
+  section > p.lede b { color: var(--label-1); font-weight: 600; }
+  .annot { font-size: 12px; color: var(--label-2); margin-top: 16px; line-height: 1.65; padding-left: 18px; max-width: 920px; }
+  .annot li { margin-bottom: 5px; }
+  .annot li strong { color: var(--label-1); font-weight: 600; }
+
+  .decide {
+    max-width: 1120px; margin: 16px auto 0;
+    background: var(--privacy-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 15px;
+    font-size: 12px; color: var(--label-1); line-height: 1.65;
+  }
+  .decide .k { display:block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+  .decide + .decide { margin-top: 8px; }
+  .decide .rec { font-weight: 600; }
+
+  .tag { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase;
+    color: var(--accent); border:1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 4px; padding: 1px 5px; vertical-align: 1px; margin-left: 6px; }
+  .tag.rev { color: var(--warning-text); border-color: color-mix(in srgb, var(--warning-text) 40%, transparent); }
+  .tag.gone { color: var(--label-2); border-color: var(--sep-strong); }
+
+  /* ————— Trays / desks for the state galleries ————— */
+  .tray {
+    background: var(--tray-bg);
+    border-radius: 14px;
+    padding: 34px 28px;
+    display: flex; flex-wrap: wrap; gap: 36px 30px;
+    justify-content: center; align-items: flex-start;
+  }
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 320px; }
+  .slot.wide { width: 100%; max-width: 640px; }
+  .slot .cap2 { font-size: 11px; color: var(--label-2); text-align: center; line-height: 1.55; }
+  .slot .cap2 b { color: var(--label-1); font-weight: 600; }
+  .when { display:block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--label-3); font-weight: 700; margin-bottom: 3px; }
+
+  .desk {
+    background: var(--desk);
+    border-radius: 14px;
+    padding: 0 0 44px;
+    overflow: hidden;
+    display: flex; flex-wrap: wrap; gap: 34px;
+    justify-content: center; align-items: flex-start;
+  }
+  .desk .stage { padding-top: 30px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .desk .stagecap {
+    font-size: 11px; color:#fff; max-width: 340px; text-align:center; line-height:1.55;
+    background: rgba(0,0,0,0.42); border-radius: 8px; padding: 9px 12px;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  }
+  .desk .stagecap b { font-weight: 700; }
+  .desk .stagecap .when { color: #fff; opacity: 0.8; }
+  .menubar {
+    flex-basis: 100%; height: 26px;
+    background: var(--menubar-bg);
+    -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 14px; gap: 12px;
+    font-size: 12px; color: var(--label-1);
+  }
+  .menubar .appglyph { display:flex; align-items:center; padding: 2px 7px; border-radius: 5px; background: var(--menubar-press); }
+  .menubar svg { display:block; }
+
+  /* ————— truncation helpers —————
+     Both halves are the REAL name; CSS does the cutting. Nothing is
+     pre-shortened in a string — see section 7. */
+  .tmid { display: flex; min-width: 0; flex: 0 1 auto; }
+  .tmid > .h { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tmid > .t { flex: none; white-space: nowrap; }
+  .tend { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+
+  /* ═══════════ THE POPUP — M5 anatomy, preserved exactly ═══════════ */
+  .popup {
+    width: 312px;
+    background: var(--window-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow-win);
+    padding: 14px 16px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .pop-head { font-size: 11px; color: var(--label-2); margin-bottom: 11px; letter-spacing: 0.1px; }
+  .orig { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--label-2); margin-bottom: 6px; }
+  .orig .dico { flex: none; width: 11px; height: 13px; color: var(--label-3); }
+  .orig .oname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .field {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--field-bg);
+    border: 1px solid var(--field-border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    box-shadow: inset 0 1px 1.5px rgba(0,0,0,0.04);
+  }
+  .field .fval { flex: 1; min-width: 0; font-size: 13px; color: var(--label-1); }
+  .field .pencil { flex: none; width: 12px; height: 12px; color: var(--label-3); }
+  .field.focused { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+  /* in-flight: not editable, so it reads back as plain text but stays legible */
+  .field.busy { background: transparent; box-shadow: none; border-color: color-mix(in srgb, var(--field-border) 55%, transparent); }
+  .field.busy .fval { color: var(--label-2); }
+  .caret { display: inline-block; width: 1.5px; height: 14px; background: var(--label-1); vertical-align: -2px; margin-left: 0.5px; animation: blink 1.06s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .dest { font-size: 11px; color: var(--label-1); margin-top: 8px; display: flex; align-items: center; gap: 5px; }
+  .dest .arrow { color: var(--label-2); }
+  .dest .fico { width: 13px; height: 11px; flex: none; }
+  .dest.muted .fico { opacity: 0.55; }
+  .nomatch { font-size: 11px; color: var(--label-2); margin-top: 8px; }
+
+  /* Inline error block — lives inside the popup, never a system alert. */
+  .errblock { margin-top: 10px; }
+  .errline { font-size: 11px; color: var(--error-text); line-height: 1.45; }
+  .subline { font-size: 11px; color: var(--label-1); margin-top: 5px; line-height: 1.45; }
+  .errbtnline { margin-top: 9px; }
+  /* the optional slow-disk sentence — its own full-width line, NOT the footer */
+  .slowline { font-size: 11px; color: var(--label-2); margin-top: 8px; line-height: 1.45; }
+
+  /* The footer is a FIXED-HEIGHT row. The status caption is one short line
+     that truncates rather than wraps, so the footer can never grow and the
+     buttons can never move. See section 5. */
+  .pop-foot {
+    display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+    margin-top: 14px; min-height: 26px;
+  }
+  .pop-foot .busy-label {
+    margin-right: auto; min-width: 0;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--label-1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .btn { font: inherit; font-size: 13px; border-radius: 6px; cursor: pointer; border: none; line-height: 1.3; flex: none; }
+  .btn-dismiss { background: transparent; color: var(--label-2); padding: 6px 12px; }
+  .btn-dismiss:hover { background: var(--tab-active); color: var(--label-1); }
+  .btn-accept { background: var(--accent); color: #fff; padding: 6px 16px; box-shadow: var(--accept-shadow); }
+  .btn.disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  .btn-dismiss.disabled:hover { background: transparent; color: var(--label-2); }
+  .btn.kfocus { box-shadow: 0 0 0 3px var(--focus-ring); }
+  .btn-accept.kfocus { box-shadow: var(--accept-shadow), 0 0 0 3px var(--focus-ring); }
+
+  .spinner {
+    width: 11px; height: 11px; flex: none;
+    border: 1.5px solid var(--label-3); border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ═══════════ THE MENU-BAR DROPDOWN — unchanged .menu style ═══════════ */
+  .menu {
+    width: 300px;
+    background: var(--menu-bg);
+    -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+    border-radius: 10px;
+    box-shadow: var(--shadow-menu);
+    padding: 5px 6px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .mitem { padding: 5px 8px; border-radius: 5px; color: var(--label-1); }
+  .mitem .cap { font-size: 11px; color: var(--label-2); margin-top: 2px; }
+  .mitem .stat { font-size: 11px; color: var(--label-1); margin-top: 2px; }
+  .mitem .dline { font-size: 11px; color: var(--label-1); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+  .mitem .dline .arrow { color: var(--label-2); flex: none; }
+  .mitem .dline .fico { width: 13px; height: 11px; flex: none; }
+  .mitem .fline { display: flex; align-items: baseline; gap: 5px; min-width: 0; }
+  .mitem .fsize { flex: none; }
+  /* the macOS menu highlight: accent fill, ALL text turns white */
+  .mitem.hot { background: var(--accent); }
+  .mitem.hot, .mitem.hot .cap, .mitem.hot .stat, .mitem.hot .dline,
+  .mitem.hot .dline .arrow { color: #fff; }
+  .mitem.hot .fico path { fill: #fff; }
+  .msep { height: 1px; background: var(--sep-strong); margin: 5px 8px; }
+  .mhint { font-size: 11px; color: var(--label-2); padding: 4px 8px 5px; line-height: 1.45; }
+  .mcmd { padding: 4px 8px; border-radius: 5px; }
+  .mcmd.hot { background: var(--accent); color: #fff; }
+
+  /* ═══════════ SETTINGS WINDOW ═══════════ */
+  .window {
+    position: relative;
+    width: 620px; max-width: 100%;
+    background: var(--window-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow-win);
+    overflow: hidden;
+  }
+  .titlebar { position: relative; padding: 10px 0 0; }
+  .lights { position: absolute; left: 12px; top: 12px; display: flex; gap: 8px; }
+  .lights span { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.15); }
+  .lights .r { background: #FF5F57; } .lights .y { background: #FEBC2E; } .lights .g { background: #28C840; }
+  .titlebar .wtitle { text-align: center; font-size: 13px; font-weight: 600; padding-bottom: 8px; }
+  .tabs { display: flex; justify-content: center; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--sep); }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 11px; color: var(--label-2);
+    padding: 4px 12px; border-radius: 7px; min-width: 58px;
+  }
+  .tab svg { color: var(--label-2); }
+  .tab.active { background: var(--tab-active); color: var(--label-1); }
+  .tab.active svg { color: var(--accent); }
+
+  .pane { padding: 18px 20px 20px; }
+  .pane .grouptitle { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .pane .intro { font-size: 12px; color: var(--label-2); line-height: 1.5; margin-bottom: 12px; max-width: 500px; }
+
+  /* the inset list box, same material as the M4 folder list */
+  .listbox {
+    background: var(--content-bg);
+    border: 1px solid var(--sep-strong);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .listbox.scrolls { max-height: 306px; overflow-y: auto; }
+  .listbox::-webkit-scrollbar { width: 9px; }
+  .listbox::-webkit-scrollbar-thumb { background: var(--scrollthumb); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+  .listbox::-webkit-scrollbar-track { background: transparent; }
+
+  .dayhead {
+    font-size: 11px; font-weight: 600; color: var(--label-2);
+    padding: 7px 12px 5px;
+    background: color-mix(in srgb, var(--label-1) 3.5%, transparent);
+    border-bottom: 1px solid var(--sep);
+  }
+
+  /* ————— ONE HISTORY ROW —————
+     L1  the name the file has now   ·  time  ·  [Undo]
+     L2  the outcome                 (primary / amber / red)
+     L3  where it came from, or what to do next (secondary) */
+  .hrow { display: flex; align-items: flex-start; gap: 12px; padding: 9px 12px; }
+  .hrow + .hrow { border-top: 1px solid var(--sep); }
+  .hrow .htext { flex: 1 1 auto; min-width: 0; }
+  .hrow .l1 { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 13px; color: var(--label-1); }
+  .hrow .l1 .htime { flex: none; font-size: 11px; color: var(--label-2); margin-left: auto; padding-left: 6px; }
+  .hrow .l2 { font-size: 11px; color: var(--label-1); margin-top: 3px; line-height: 1.45; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .hrow .l2 .fico { width: 13px; height: 11px; flex: none; }
+  .hrow .l2.amber { color: var(--warning-text); }
+  .hrow .l2.red   { color: var(--error-text); }
+  .hrow .l3 { font-size: 11px; color: var(--label-2); margin-top: 2px; line-height: 1.45; }
+  .hrow .l3.red { color: var(--error-text); }
+  .hrow .btnwrap { flex: none; padding-top: 1px; width: 62px; display: flex; justify-content: flex-end; }
+  .hrow.dim .l1 { color: var(--label-2); }
+
+  .minibtn {
+    flex: none;
+    font: inherit; font-size: 11px; line-height: 1.25;
+    color: var(--label-1);
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 5px;
+    padding: 4px 10px;
+    min-width: 62px; text-align: center;
+    box-shadow: 0 0.5px 1.5px rgba(0,0,0,0.10);
+    cursor: pointer;
+  }
+  .minibtn:hover { background: var(--btn-hover); }
+  .minibtn.disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+  .minibtn.disabled:hover { background: var(--btn-bg); }
+  .minibtn.kfocus { box-shadow: 0 0 0 3px var(--focus-ring); }
+
+  .emptybox { padding: 34px 24px; text-align: center; }
+  .emptybox .eicon { color: var(--label-3); margin-bottom: 10px; }
+  .emptybox .etitle { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .emptybox .ebody { font-size: 12px; color: var(--label-2); line-height: 1.5; max-width: 380px; margin: 0 auto; }
+
+  .listfoot { display: flex; align-items: center; margin-top: 12px; }
+  .listfoot .count { margin-left: auto; font-size: 11px; color: var(--label-2); }
+  .pushbtn {
+    font: inherit; font-size: 13px; color: var(--label-1);
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 6px;
+    padding: 4px 12px;
+    box-shadow: 0 0.5px 1.5px rgba(0,0,0,0.12);
+    cursor: pointer;
+  }
+  .pushbtn:hover { background: var(--btn-hover); }
+  .pushbtn.default { background: var(--accent); border-color: transparent; color: #fff; box-shadow: var(--accept-shadow); }
+  .pushbtn.small { font-size: 11px; padding: 3px 10px; }
+  .pushbtn.disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+
+  /* ————— The confirmation alert ————— */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); }
+  .sheet {
+    position: absolute; top: 31px; left: 50%; transform: translateX(-50%);
+    width: 290px;
+    background: var(--window-bg);
+    border-radius: 0 0 11px 11px;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.35), 0 0 0 0.5px rgba(0,0,0,0.16);
+    padding: 18px 20px 16px;
+    text-align: center;
+  }
+  body.dark .sheet { box-shadow: 0 14px 34px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.12); }
+  .sheet .appicon {
+    width: 52px; height: 52px; margin: 0 auto 11px; border-radius: 12px;
+    background: linear-gradient(165deg,#8CC5FF 0%,#3E8EF0 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+  .sheet .appicon svg { color: #fff; opacity: 0.95; }
+  .sheet .stitle { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .sheet .sbody { font-size: 11px; color: var(--label-1); line-height: 1.45; margin-bottom: 15px; }
+  .sheet .sbtns { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ————— section 7 helpers ————— */
+  .cstrip { display: flex; gap: 22px; flex-wrap: wrap; }
+  .ccard { flex: 1 1 330px; }
+  .ccard h4 { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .ccard p { font-size: 12px; color: var(--label-2); line-height: 1.6; }
+  .ratio { font-size: 10.5px; color: var(--label-2); margin-top: 8px; line-height: 1.55; }
+  .ratio b { color: var(--label-1); }
+  .swatches { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .sw { font-size: 11px; padding: 6px 10px; border-radius: 6px; background: var(--content-bg); }
+  .sw .lbl { display: block; font-size: 10px; color: var(--label-2); margin-bottom: 2px; }
+
+  table.strings { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 12px; }
+  table.strings th, table.strings td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--sep); vertical-align: top; line-height: 1.45; }
+  table.strings th { font-weight: 600; font-size: 11px; color: var(--label-2); }
+  table.strings td.k { color: var(--label-2); width: 32%; }
+
+  .map { display: flex; gap: 18px; flex-wrap: wrap; max-width: 1120px; margin: 0 auto 34px; }
+  .mapcard { flex: 1 1 320px; background: var(--content-bg); border-radius: 10px; padding: 14px 16px; font-size: 12px; line-height: 1.6; color: var(--label-2); box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+  body.dark .mapcard { box-shadow: none; }
+  .mapcard h4 { font-size: 12px; font-weight: 700; color: var(--label-1); margin-bottom: 5px; }
+  .mapcard .verdict { display:inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+    border-radius: 4px; padding: 1px 6px; margin-bottom: 7px; }
+  .mapcard .verdict.same { color: var(--label-2); border: 1px solid var(--sep-strong); }
+  .mapcard .verdict.new { color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+</style>
+</head>
+<body>
+
+<!-- shared folder-icon gradient (identical to the M4 / M5 mockups) -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="foldg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#74B9FF"/><stop offset="1" stop-color="#3E8EF0"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="page-head">
+  <h1>M6 — Move history &amp; undo</h1>
+  <span class="sub">revision 3 · mockup for approval · nothing here is live</span>
+  <div class="toggle">
+    <button data-theme="light" class="active">Light</button>
+    <button data-theme="dark">Dark</button>
+  </div>
+</div>
+
+<p class="note">
+  M6 is the milestone where <strong>Accept finally moves the file</strong>. Two things follow from that. The popup has to show that work is
+  happening and, when it fails, stay open and say why — sections 4 and 5. And every move has to be written down somewhere you can find it and
+  take it back — the new <strong>History</strong> pane in Settings, sections 1 to 3.
+  <br>
+  The Light / Dark toggle at the top stays on screen as you scroll — flip it in any section. Every drawing is labelled with
+  <strong>when you would see it</strong>.
+</p>
+
+<div class="whatschanged">
+  <h3>What changed since revision 2 — and why</h3>
+  <ol>
+    <li><b>You reversed the dropdown decision on 28 July, and this whole mockup follows.</b> Revision 2 turned the menu-bar dropdown into a floating panel so it could hold history rows and buttons. You chose the conservative option instead: <b>the dropdown keeps its current style and changes nothing visually.</b> Every panel drawing from revision 2 is deleted.</li>
+    <li><b>Move history and Undo now live in the Settings window</b>, in a new <b>History</b> tab. This is a better home than the dropdown, not a consolation prize: a window has no menu constraints, so rows can be multi-line, honest about failure, keyboard-reachable and readable aloud by VoiceOver — none of which the dropdown could do.</li>
+    <li><b>The dropdown gets exactly one change, and it is behavioural.</b> A file row whose suggestion is ready becomes clickable and re-opens that file's popup. It looks like an ordinary menu item, because it is one. Section 6.</li>
+    <li><b>The popup keeps the anatomy you approved in M5</b> — same width, same lines, same proportions — and gains three states: Moving…, failed, and folder-blocked. Sections 4 and 5.</li>
+    <li><b>Four notes from the last review are fixed:</b> system colours instead of hand-picked ones, a recommendation on the small grey text, a footer that can no longer jump, and a rule that stops one successful move reading as two separate events. Section 7.</li>
+  </ol>
+</div>
+
+<div class="map">
+  <div class="mapcard">
+    <span class="verdict same">Unchanged</span>
+    <h4>The menu-bar dropdown</h4>
+    Same style, same look, same rows as today. No history section, no Undo, no buttons on the right, no outcome lines.
+    One behavioural change only: a row with a ready suggestion is now clickable and brings its popup back.
+  </div>
+  <div class="mapcard">
+    <span class="verdict same">Same anatomy</span>
+    <h4>The suggestion popup</h4>
+    The M5 design you approved, unchanged in width, layout and proportions. It gains the states a real move needs:
+    working, failed, and folder-blocked. This is still the panel in the demo video.
+  </div>
+  <div class="mapcard">
+    <span class="verdict new">New</span>
+    <h4>Settings › History</h4>
+    A third tab beside General and Folders. Every file the app has moved, newest first, with an Undo on the ones that can
+    still be taken back — and a plain sentence on the ones that can't.
+  </div>
+</div>
+
+<!-- ═════════════ 1 · SETTINGS › HISTORY ═════════════ -->
+<section>
+  <h2>1 · Settings › History — the new pane <span class="tag">new</span></h2>
+  <p class="lede">
+    <b>When you see it:</b> any time you open Settings from the menu bar and click <b>History</b> — most often the moment you think
+    “wait, where did that file go?”. It is the app's record of everything it has done to your files, newest first, and the only place
+    an Undo lives.
+    <br>
+    The window is the same 620&nbsp;px window and the same inset list you approved for Folders in M4. What is new is the row: three short lines
+    that answer <b>what is it called now</b>, <b>what happened to it</b>, and <b>what was it called before</b>.
+  </p>
+
+  <div class="desk">
+    <div class="stage">
+      <div class="window">
+        <div class="titlebar">
+          <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div class="wtitle">Settings</div>
+          <div class="tabs">
+            <div class="tab">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="4.6" stroke-width="2.4" stroke-dasharray="2.4 2.4"/><circle cx="8" cy="8" r="1.9" stroke-width="1.4"/></svg>
+              General
+            </div>
+            <div class="tab">
+              <svg width="18" height="15" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="currentColor"/></svg>
+              Folders
+            </div>
+            <div class="tab active">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.2a4.8 4.8 0 1 1-4.36 2.8"/><path d="M3.2 2.6v2.9h2.9"/><path d="M8 5.4V8l1.9 1.2"/></svg>
+              History
+            </div>
+          </div>
+        </div>
+        <div class="pane">
+          <div class="grouptitle">Move history</div>
+          <p class="intro">Every file you have accepted. Undo puts a file back in Downloads under the name it had before.</p>
+
+          <div class="listbox scrolls">
+            <div class="dayhead">Today</div>
+
+            <!-- moved — the everyday row -->
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="2026-06 Acme invoice.pdf"><span class="h">2026-06 Acme inv</span><span class="t">oice.pdf</span></span>
+                  <span class="htime">11:04</span>
+                </div>
+                <div class="l2">Moved to
+                  <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+                  Invoices</div>
+                <div class="l3">was acme-invoice-final-FINAL-v3-signed(3).pdf</div>
+              </div>
+              <div class="btnwrap"><button class="minibtn">Undo</button></div>
+            </div>
+
+            <!-- moved, but renamed in place because the folder was unavailable -->
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="2026-06 Rent receipt.pdf"><span class="h">2026-06 Rent r</span><span class="t">eceipt.pdf</span></span>
+                  <span class="htime">10:41</span>
+                </div>
+                <div class="l2 amber">Renamed in Downloads — Receipts isn't there any more</div>
+                <div class="l3">was rent-receipt-june.pdf</div>
+              </div>
+              <div class="btnwrap"><button class="minibtn">Undo</button></div>
+            </div>
+
+            <!-- failed -->
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="passport-scan-front.pdf"><span class="h">passport-scan-fro</span><span class="t">nt.pdf</span></span>
+                  <span class="htime">09:58</span>
+                </div>
+                <div class="l2 red">Couldn't move — macOS wouldn't let this app write into Tax &amp; Accounting 2026</div>
+                <div class="l3">Still in Downloads under this name. Nothing was changed.</div>
+              </div>
+              <div class="btnwrap"></div>
+            </div>
+
+            <div class="dayhead">Yesterday</div>
+
+            <!-- undone -->
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="statement-2026-05.pdf"><span class="h">statement-2</span><span class="t">026-05.pdf</span></span>
+                  <span class="htime">18:22</span>
+                </div>
+                <div class="l2">Undone — back in Downloads</div>
+                <div class="l3">had been 2026-05 Chase statement.pdf in Invoices</div>
+              </div>
+              <div class="btnwrap"></div>
+            </div>
+
+            <!-- unknown -->
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="lease-agreement-signed.pdf"><span class="h">lease-agreement</span><span class="t">-signed.pdf</span></span>
+                  <span class="htime">16:07</span>
+                </div>
+                <div class="l2 amber">Result unknown — the app stopped mid-move</div>
+                <div class="l3">Look in Downloads for lease-agreement-signed.pdf and in Documents for Lease agreement 2026.pdf. No Undo is offered, because the app can't confirm what happened.</div>
+              </div>
+              <div class="btnwrap"></div>
+            </div>
+
+            <!-- moved, ordinary -->
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="Whiteboard sprint notes.png"><span class="h">Whiteboard spr</span><span class="t">int notes.png</span></span>
+                  <span class="htime">14:30</span>
+                </div>
+                <div class="l2">Moved to
+                  <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+                  Notes</div>
+                <div class="l3">was Screenshot 2026-07-27 at 09.12.44.png</div>
+              </div>
+              <div class="btnwrap"><button class="minibtn">Undo</button></div>
+            </div>
+          </div>
+
+          <div class="listfoot">
+            <button class="pushbtn">Clear History…</button>
+            <span class="count">34 moves stored</span>
+          </div>
+        </div>
+      </div>
+      <div class="stagecap">
+        <span class="when">When you see it</span>
+        <b>Settings › History, a normal week in.</b> Six of the last 34 moves are visible; the list scrolls. Two of these can still be
+        undone, and only those two carry a button.
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><strong>Three lines, always in the same order.</strong> Line 1 is <i>the name the file has right now</i> — that is what you would type into Spotlight. Line 2 is <i>what happened</i>. Line 3 is <i>where it came from</i>, or what to do next when something went wrong. Every state uses the same three slots, so your eye learns one shape.</li>
+    <li><strong>Undo appears only where undoing is genuinely possible.</strong> Two rows here have it; four do not. A row that cannot be undone says so in words — it is never a greyed-out button, because a greyed-out button invites you to hunt for a way to enable it.</li>
+    <li><strong>Only the button is clickable.</strong> The row itself is inert. Undo cannot be redone in M6, so there is deliberately no big target to hit by accident, and no confirmation dialog to train you to click through.</li>
+    <li><strong>Day headers instead of a date on every row.</strong> “Today”, “Yesterday”, then the weekday and date. The row keeps just the clock time, which is all you need once you know the day. VoiceOver still reads the full “Moved today at 11:04”.</li>
+    <li><strong>Long names are cut in the middle</strong>, so the extension always survives: <i>acme-invoice-final-FIN…ned(3).pdf</i>. Hovering shows the whole name, and the whole name is what a screen reader reads — the app never stores a shortened one.</li>
+    <li><strong>Amber means your file is fine but something did not go to plan. Red means it did not happen.</strong> Both are always full sentences, so the meaning survives with the colour removed.</li>
+    <li><strong>The list holds the last 200 moves</strong> (your locked decision) and scrolls. Nothing expires on a timer — a move from three weeks ago is still undoable if the file is still where the app left it.</li>
+  </ul>
+
+  <div class="decide">
+    <span class="k">Founder decision — where History sits among the tabs</span>
+    I have put it <strong>third: General · Folders · History</strong>. General first is the macOS convention, and Folders is the thing you set up
+    once. History is the thing you visit when something surprised you, which is rarer than it feels.
+    <span class="rec">My recommendation: leave it third.</span> Say the word if you would rather History came second, since after M6 it is arguably
+    the more interesting pane.
+  </div>
+  <div class="decide">
+    <span class="k">Founder decision — the new name is on top, the old name underneath</span>
+    The popup shows the old name first and the new name below it, because at that moment you are deciding about a file you still think of by its
+    old name. The history reverses that: the file's current name is line 1 and “was …” is line 3, because by then you are looking for a file you
+    now know by its new name. <span class="rec">My recommendation: keep the reversal.</span> The alternative — printing
+    <i>old&nbsp;→&nbsp;new</i> on one line — reads well with short names and falls apart with two long ones, and it overloads the arrow, which
+    everywhere else in this app means “into this folder”.
+  </div>
+</section>
+
+<!-- ═════════════ 2 · EVERY ROW STATE ═════════════ -->
+<section>
+  <h2>2 · Every state a history row can be in <span class="tag">new</span></h2>
+  <p class="lede">
+    <b>When you see them:</b> the first two are the everyday cases and account for almost every row you will ever have. The rest are the honest
+    answers to things going wrong. They are drawn here one after another so you can read the words; in real use they are rare and scattered.
+    <br>
+    The rule underneath all of them: <b>the app never offers an action it cannot actually perform, and never claims knowledge it does not have.</b>
+  </p>
+
+  <div class="tray">
+    <div class="slot wide">
+      <div class="listbox">
+
+        <!-- 1 moved -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="2026-06 Chase Sapphire Preferred statement.pdf"><span class="h">2026-06 Chase Sapphire Preferr</span><span class="t">ed statement.pdf</span></span>
+              <span class="htime">11:04</span>
+            </div>
+            <div class="l2">Moved to
+              <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+              Invoices</div>
+            <div class="l3">was chase_stmt_2026-06 (1).pdf</div>
+          </div>
+          <div class="btnwrap"><button class="minibtn kfocus">Undo</button></div>
+        </div>
+
+        <!-- 2 renamed in place -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="2026-06 Rent receipt.pdf"><span class="h">2026-06 Rent r</span><span class="t">eceipt.pdf</span></span>
+              <span class="htime">10:41</span>
+            </div>
+            <div class="l2 amber">Renamed in Downloads — Receipts isn't there any more</div>
+            <div class="l3">was rent-receipt-june.pdf</div>
+          </div>
+          <div class="btnwrap"><button class="minibtn">Undo</button></div>
+        </div>
+
+        <!-- 3 moving -->
+        <div class="hrow dim">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="holiday-photo-dump.zip"><span class="h">holiday-photo</span><span class="t">-dump.zip</span></span>
+              <span class="htime">11:06</span>
+            </div>
+            <div class="l2">Moving…</div>
+            <div class="l3">to Photos</div>
+          </div>
+          <div class="btnwrap"></div>
+        </div>
+
+        <!-- 4 undone -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="statement-2026-05.pdf"><span class="h">statement-2</span><span class="t">026-05.pdf</span></span>
+              <span class="htime">18:22</span>
+            </div>
+            <div class="l2">Undone — back in Downloads</div>
+            <div class="l3">had been 2026-05 Chase statement.pdf in Invoices</div>
+          </div>
+          <div class="btnwrap"></div>
+        </div>
+
+        <!-- 5 undone, name was taken -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="rent-receipt-may 2.pdf"><span class="h">rent-receipt-</span><span class="t">may 2.pdf</span></span>
+              <span class="htime">17:55</span>
+            </div>
+            <div class="l2">Undone — back in Downloads</div>
+            <div class="l3">The name rent-receipt-may.pdf was already taken, so it came back as rent-receipt-may&nbsp;2.pdf. Nothing was overwritten.</div>
+          </div>
+          <div class="btnwrap"></div>
+        </div>
+
+        <!-- 6 undo failed, still undoable -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="2026-04 Chase statement.pdf"><span class="h">2026-04 Chase s</span><span class="t">tatement.pdf</span></span>
+              <span class="htime">09:12</span>
+            </div>
+            <div class="l2">Moved to
+              <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+              Invoices</div>
+            <div class="l3 red">Can't undo — that file isn't where the app left it</div>
+          </div>
+          <div class="btnwrap"><button class="minibtn">Undo</button></div>
+        </div>
+
+        <!-- 7 failed, permission -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="passport-scan-front.pdf"><span class="h">passport-scan-fro</span><span class="t">nt.pdf</span></span>
+              <span class="htime">09:58</span>
+            </div>
+            <div class="l2 red">Couldn't move — macOS wouldn't let this app write into Tax &amp; Accounting 2026</div>
+            <div class="l3">Still in Downloads under this name. Nothing was changed.</div>
+          </div>
+          <div class="btnwrap"></div>
+        </div>
+
+        <!-- 8 failed, history could not be written -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="invoice-acme-0042.pdf"><span class="h">invoice-acm</span><span class="t">e-0042.pdf</span></span>
+              <span class="htime">08:30</span>
+            </div>
+            <div class="l2 red">Couldn't move — the undo record couldn't be saved</div>
+            <div class="l3">Nothing was moved, on purpose: the app will not touch a file it cannot promise to put back.</div>
+          </div>
+          <div class="btnwrap"></div>
+        </div>
+
+        <!-- 9 unknown -->
+        <div class="hrow">
+          <div class="htext">
+            <div class="l1">
+              <span class="tmid" title="lease-agreement-signed.pdf"><span class="h">lease-agreement</span><span class="t">-signed.pdf</span></span>
+              <span class="htime">16:07</span>
+            </div>
+            <div class="l2 amber">Result unknown — the app stopped mid-move</div>
+            <div class="l3">Look in Downloads for lease-agreement-signed.pdf and in Documents for Lease agreement 2026.pdf. No Undo is offered, because the app can't confirm what happened.</div>
+          </div>
+          <div class="btnwrap"></div>
+        </div>
+
+      </div>
+      <div class="cap2" style="text-align:left; padding: 0 4px">
+        <b>Top to bottom.</b>
+        <b>1 Moved</b> — the everyday row, drawn here with the keyboard focus ring on its Undo.
+        <b>2 Renamed in place</b> — the destination folder was gone at the moment of the move, so the app renamed the file where it stood rather
+        than stopping to ask; Undo puts the old name back.
+        <b>3 Moving…</b> — a move that is running right now, which you would only catch if Settings happened to be open.
+        <b>4 Undone</b> — already put back; no button, because there is no redo.
+        <b>5 Undone, name was taken</b> — the old name had been reused in the meantime, so the file came back under a numbered name and the row
+        says so rather than overwriting anything.
+        <b>6 Undo failed</b> — you pressed Undo and the file was no longer where the app left it; the move itself still stands, so Undo stays
+        offered in case you put the file back.
+        <b>7 Couldn't move</b> — macOS blocked the folder; the file never left Downloads.
+        <b>8 Couldn't move</b> — the undo record could not be written, so the app refused to move the file at all.
+        <b>9 Result unknown</b> — the app was force-quit or crashed between starting and finishing; it genuinely cannot tell which side the file
+        landed on, so it says exactly that, names both places to look, and offers no Undo.
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><strong>“Unknown” is a real answer, and it gets a real row.</strong> The tempting thing is to hide these or guess. Both are worse: hiding one means your history is quietly incomplete, and guessing means the app might offer an Undo that moves the wrong file. So the row stays, says what it does not know, and tells you the two places to look.</li>
+    <li><strong>Row 8 is the fail-closed rule made visible.</strong> Your locked decision was that if the undo record cannot be written, the file is not moved. This row is where the user finds out that nothing happened — and why that was deliberate.</li>
+    <li><strong>Row 6 keeps its Undo on purpose.</strong> The move genuinely happened, so the record is still true; only <i>this attempt</i> to reverse it failed. If you put the file back where it was, Undo will work. The app never goes hunting across the disk for a moved file — it looks exactly where it left it and reports honestly when it is not there.</li>
+    <li><strong>No row is ever deleted to tidy up.</strong> Rows leave only by falling out of the 200-move window, or when you clear the history yourself.</li>
+    <li><strong>For the builder:</strong> every one of these is one accessibility element reading as a single sentence — “2026-06 Acme invoice.pdf. Moved to Invoices, today at 11:04. Was acme-invoice-final-FINAL-v3-signed(3).pdf.” The folder glyph and any arrow are decoration and must be hidden from VoiceOver.</li>
+  </ul>
+
+  <div class="decide">
+    <span class="k">Founder decision — should “Moving…” rows appear at all?</span>
+    Row 3 only ever shows if you happen to have Settings open at the exact moment a move runs, which is a fraction of a second in normal use.
+    I have kept it because the alternative is a row that pops into existence fully formed, and because a slow copy to an external disk is
+    exactly when someone <i>would</i> go looking. <span class="rec">My recommendation: keep it.</span>
+  </div>
+</section>
+
+<!-- ═════════════ 3 · EMPTY STATES + CLEAR HISTORY ═════════════ -->
+<section>
+  <h2>3 · Nothing yet, and clearing it <span class="tag">new</span></h2>
+  <p class="lede">
+    Three moments: before the app has ever moved anything, the confirmation you get when you clear the record, and what the pane looks like
+    afterwards. <b>The two empty states say different things on purpose</b> — one means “nothing has happened”, the other means
+    “things happened and the record is gone”. Pretending they are the same would be the app quietly rewriting its own history.
+  </p>
+
+  <div class="desk">
+
+    <!-- A · never used -->
+    <div class="stage">
+      <div class="window">
+        <div class="titlebar">
+          <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div class="wtitle">Settings</div>
+          <div class="tabs">
+            <div class="tab">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="4.6" stroke-width="2.4" stroke-dasharray="2.4 2.4"/><circle cx="8" cy="8" r="1.9" stroke-width="1.4"/></svg>
+              General
+            </div>
+            <div class="tab">
+              <svg width="18" height="15" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="currentColor"/></svg>
+              Folders
+            </div>
+            <div class="tab active">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.2a4.8 4.8 0 1 1-4.36 2.8"/><path d="M3.2 2.6v2.9h2.9"/><path d="M8 5.4V8l1.9 1.2"/></svg>
+              History
+            </div>
+          </div>
+        </div>
+        <div class="pane">
+          <div class="grouptitle">Move history</div>
+          <p class="intro">Every file you have accepted. Undo puts a file back in Downloads under the name it had before.</p>
+          <div class="listbox">
+            <div class="emptybox">
+              <svg class="eicon" width="34" height="34" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+                <path d="M8 2.4a5.6 5.6 0 1 1-5.09 3.26"/><path d="M2.5 1.7v3.4h3.4"/><path d="M8 4.9V8l2.2 1.4"/>
+              </svg>
+              <div class="etitle">No moves yet</div>
+              <div class="ebody">Files you accept appear here, newest first, each with an Undo.</div>
+            </div>
+          </div>
+          <div class="listfoot">
+            <button class="pushbtn disabled">Clear History…</button>
+            <span class="count">0 moves stored</span>
+          </div>
+        </div>
+      </div>
+      <div class="stagecap">
+        <span class="when">When you see it</span>
+        <b>A — before anything has been moved.</b> Day one, or any time you have only ever dismissed suggestions. The Clear History button is
+        dimmed, because there is nothing to clear.
+      </div>
+    </div>
+
+    <!-- B · the confirmation -->
+    <div class="stage">
+      <div class="window">
+        <div class="titlebar">
+          <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div class="wtitle">Settings</div>
+          <div class="tabs">
+            <div class="tab">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="4.6" stroke-width="2.4" stroke-dasharray="2.4 2.4"/><circle cx="8" cy="8" r="1.9" stroke-width="1.4"/></svg>
+              General
+            </div>
+            <div class="tab">
+              <svg width="18" height="15" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="currentColor"/></svg>
+              Folders
+            </div>
+            <div class="tab active">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.2a4.8 4.8 0 1 1-4.36 2.8"/><path d="M3.2 2.6v2.9h2.9"/><path d="M8 5.4V8l1.9 1.2"/></svg>
+              History
+            </div>
+          </div>
+        </div>
+        <div class="pane">
+          <div class="grouptitle">Move history</div>
+          <p class="intro">Every file you have accepted. Undo puts a file back in Downloads under the name it had before.</p>
+          <div class="listbox">
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="2026-06 Acme invoice.pdf"><span class="h">2026-06 Acme inv</span><span class="t">oice.pdf</span></span>
+                  <span class="htime">11:04</span>
+                </div>
+                <div class="l2">Moved to
+                  <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+                  Invoices</div>
+                <div class="l3">was acme-invoice-final-FINAL-v3-signed(3).pdf</div>
+              </div>
+              <div class="btnwrap"><button class="minibtn">Undo</button></div>
+            </div>
+            <div class="hrow">
+              <div class="htext">
+                <div class="l1">
+                  <span class="tmid" title="2026-06 Rent receipt.pdf"><span class="h">2026-06 Rent r</span><span class="t">eceipt.pdf</span></span>
+                  <span class="htime">10:41</span>
+                </div>
+                <div class="l2 amber">Renamed in Downloads — Receipts isn't there any more</div>
+                <div class="l3">was rent-receipt-june.pdf</div>
+              </div>
+              <div class="btnwrap"><button class="minibtn">Undo</button></div>
+            </div>
+          </div>
+          <div class="listfoot">
+            <button class="pushbtn">Clear History…</button>
+            <span class="count">34 moves stored</span>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="appicon">
+            <svg width="26" height="21" viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z"/></svg>
+          </div>
+          <div class="stitle">Clear move history?</div>
+          <div class="sbody">Your files stay exactly where they are. The record of your last 34 moves is deleted, so those moves can no longer be undone.</div>
+          <div class="sbtns">
+            <button class="pushbtn">Clear History</button>
+            <button class="pushbtn default">Cancel</button>
+          </div>
+        </div>
+      </div>
+      <div class="stagecap">
+        <span class="when">When you see it</span>
+        <b>B — after clicking Clear History…</b> A standard macOS alert, sliding down from the title bar. <b>Cancel is the blue default</b>, so
+        pressing Return does the harmless thing.
+      </div>
+    </div>
+
+    <!-- C · after clearing -->
+    <div class="stage">
+      <div class="window">
+        <div class="titlebar">
+          <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+          <div class="wtitle">Settings</div>
+          <div class="tabs">
+            <div class="tab">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor"><circle cx="8" cy="8" r="4.6" stroke-width="2.4" stroke-dasharray="2.4 2.4"/><circle cx="8" cy="8" r="1.9" stroke-width="1.4"/></svg>
+              General
+            </div>
+            <div class="tab">
+              <svg width="18" height="15" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="currentColor"/></svg>
+              Folders
+            </div>
+            <div class="tab active">
+              <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.2a4.8 4.8 0 1 1-4.36 2.8"/><path d="M3.2 2.6v2.9h2.9"/><path d="M8 5.4V8l1.9 1.2"/></svg>
+              History
+            </div>
+          </div>
+        </div>
+        <div class="pane">
+          <div class="grouptitle">Move history</div>
+          <p class="intro">Every file you have accepted. Undo puts a file back in Downloads under the name it had before.</p>
+          <div class="listbox">
+            <div class="emptybox">
+              <svg class="eicon" width="34" height="34" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round">
+                <path d="M8 2.4a5.6 5.6 0 1 1-5.09 3.26"/><path d="M2.5 1.7v3.4h3.4"/><path d="M8 5.4V8l2.2 1.4"/>
+              </svg>
+              <div class="etitle">History cleared</div>
+              <div class="ebody">Your files stayed where they are. Moves made before now can no longer be undone. New moves will appear here.</div>
+            </div>
+          </div>
+          <div class="listfoot">
+            <button class="pushbtn disabled">Clear History…</button>
+            <span class="count">0 moves stored</span>
+          </div>
+        </div>
+      </div>
+      <div class="stagecap">
+        <span class="when">When you see it</span>
+        <b>C — straight after clearing.</b> Different words from A, deliberately: this one confirms what you just did and what it cost.
+        It reverts to A's wording the next time the app starts.
+      </div>
+    </div>
+
+  </div>
+
+  <ul class="annot">
+    <li><strong>The confirmation leads with what is <i>not</i> affected.</strong> “Your files stay exactly where they are.” The real fear when a button says <i>clear</i> is that files vanish, so the sentence answers that before anything else, and only then says what is actually lost.</li>
+    <li><strong>Cancel is the default button</strong> — blue, rightmost, triggered by Return. That is the macOS convention when the other choice cannot be taken back. SwiftUI does not do this by itself on macOS; it has to be asked for, and checked.</li>
+    <li><strong>“Clear History…” carries an ellipsis</strong>, the standard signal that it opens something rather than acting on the spot. The button inside the alert has no ellipsis, because that one really does act.</li>
+    <li><strong>The button dims when the count is zero.</strong> This is the one place a dimmed control is right: there is no hidden condition to discover, the reason is printed next to it — “0 moves stored”.</li>
+    <li><strong>Clearing deletes the record, never a file.</strong> It is the only destructive control in the app, and it is one level down in Settings, behind a confirmation, with Cancel as the default. That is three separate brakes on something that cannot be undone.</li>
+  </ul>
+
+  <div class="decide">
+    <span class="k">Founder decision — should the cleared message stick around?</span>
+    I have it showing until the app next starts, then reverting to the plain “No moves yet”. The alternative is to show the plain empty state
+    immediately, which is simpler to build but briefly implies nothing ever happened, seconds after you deleted the proof that it did.
+    <span class="rec">My recommendation: keep the two messages.</span> It is a few lines of code and it is the honest option.
+  </div>
+</section>
+
+<!-- ═════════════ 4 · POPUP — MOVING / HIDE ═════════════ -->
+<section>
+  <h2>4 · The popup while the file is moving <span class="tag rev">revised</span></h2>
+  <p class="lede">
+    <b>When you see it:</b> the moment after you press Accept, for as long as the move takes. Usually that is a few thousandths of a second and
+    you never see this at all. It lasts long enough to notice when the destination is on a different disk.
+    <br>
+    The panel keeps <b>exactly</b> the size and layout you approved in M5 — every line stays where it was. Only the footer changes:
+    <b>Dismiss becomes Hide and stays clickable</b>, and Accept dims. Hide (or Esc) puts the panel away; the move carries on and the result lands
+    in Settings › History.
+  </p>
+
+  <div class="tray">
+
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field">
+          <span class="fval tend">2026-06_Chase_Statement.pdf</span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="dest"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Invoices</div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <span class="when">Before you click</span>
+        <b>The approved M5 panel, untouched.</b> Nothing about this state changes in M6. It is still what appears in the demo video.
+      </div>
+    </div>
+
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field busy">
+          <span class="fval tend">2026-06_Chase_Statement.pdf</span>
+        </div>
+        <div class="dest muted"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Invoices</div>
+        <div class="pop-foot">
+          <span class="busy-label"><span class="spinner"></span>Moving…</span>
+          <button class="btn btn-dismiss kfocus" title="The move continues. The result appears in Settings › History.">Hide</button>
+          <button class="btn btn-accept disabled">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <span class="when">While the move runs</span>
+        <b>Moving…</b> Accept dims. <b>Hide</b> stays live and holds the keyboard focus ring, so Return or Space puts the panel away — and so does
+        Esc. The name stays fully readable; it just stops accepting typing.
+      </div>
+    </div>
+
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Meeting recording 2026-07-20.mov</span>
+        </div>
+        <div class="field busy">
+          <span class="fval tend">2026-07-20 Board meeting recording.mov</span>
+        </div>
+        <div class="dest muted"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Recordings</div>
+        <div class="slowline">Copying to another disk — this can take a moment. You can hide this.</div>
+        <div class="pop-foot">
+          <span class="busy-label"><span class="spinner"></span>Moving…</span>
+          <button class="btn btn-dismiss kfocus">Hide</button>
+          <button class="btn btn-accept disabled">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <span class="when">Only if the move passes ~3 seconds</span>
+        <b>The slow case.</b> A big file going to an external disk has to be copied byte by byte. After three seconds the panel adds
+        <b>one full-width sentence of its own</b>, above the footer — never inside it. The panel grows downward by one line; the buttons do not
+        move sideways and the footer does not change height.
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tray" style="margin-top:22px; align-items: stretch">
+    <div class="slot" style="width:340px">
+      <div class="popup" style="padding-top:10px; padding-bottom:12px">
+        <div class="pop-foot" style="margin-top:0">
+          <span class="busy-label"><span class="spinner"></span>Copying to another disk, this can take a moment</span>
+          <button class="btn btn-dismiss">Hide</button>
+          <button class="btn btn-accept disabled">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <b>The fix, shown.</b> Even handed an absurdly long status string, the footer stays one line high and the buttons stay put — the caption
+        truncates instead of wrapping. In revision 2 that same string wrapped to two lines and shoved the buttons down at the exact moment you
+        clicked one.
+      </div>
+    </div>
+    <div class="slot" style="width:340px">
+      <div class="popup" style="padding-top:10px; padding-bottom:12px">
+        <div class="pop-foot" style="margin-top:0">
+          <span class="busy-label"><span class="spinner"></span>Moving…</span>
+          <button class="btn btn-dismiss">Hide</button>
+          <button class="btn btn-accept disabled">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <b>What actually ships.</b> The in-flight caption is the single word <b>Moving…</b> in every case, in every language. Anything longer to
+        say goes on its own line above the footer, like the slow-disk sentence.
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><strong>Hide, not Cancel — and the word matters.</strong> Once the disk has started a move the app cannot call it back, so it must never show a button that looks like it can. “Hide” describes exactly what the click does. It also carries a tooltip and a spoken hint: <i>“The move continues. The result appears in Settings › History.”</i></li>
+    <li><strong>Esc is never inert.</strong> Esc = Hide during a move, Esc = Dismiss everywhere else. There is no state in this app where pressing Esc does nothing.</li>
+    <li><strong>Nothing jumps.</strong> The footer swaps in place over about 120&nbsp;ms and the panel keeps its size. A surface that resizes at the moment you click reads as an error even when it is not one.</li>
+    <li><strong>The spinner is delayed by about 200&nbsp;ms.</strong> Almost every move finishes faster than that; a spinner that flashes on and off looks like a glitch, which reads as failure. Accept disables <i>immediately</i> either way, so a second click cannot start a second move.</li>
+    <li><strong>No progress bar, no percentage.</strong> A same-disk move is a single instruction to the disk — a bar would be theatre. An indeterminate spinner is the honest shape for “working”.</li>
+    <li><strong>The 15-second auto-dismiss is cancelled the instant Accept is pressed</strong>, so the panel can never vanish on its own while it is holding a file mid-move. The next queued suggestion waits its turn.</li>
+    <li><strong>Reduce Motion:</strong> no spinner at all (a spinner cannot be stopped), and the footer swaps instantly. The word “Moving…” carries the state on its own.</li>
+  </ul>
+
+  <div class="decide">
+    <span class="k">Founder decision — the slow-disk sentence</span>
+    The third panel adds one line after three seconds. It costs a line of height and a small growth animation, and it answers the only question
+    anyone has at that moment: <i>is this stuck?</i> <span class="rec">My recommendation: keep it.</span> If you would rather the panel never
+    changed size at all, we drop it and the spinner carries the whole story — say so and it goes.
+  </div>
+  <div class="decide">
+    <span class="k">Worth knowing — where the result goes if you hide the panel</span>
+    Nothing is lost by hiding. The move finishes and turns into a row in Settings › History, with its Undo. That is the whole point of building
+    the history first: the panel is allowed to be dismissible precisely because it is no longer the only record.
+  </div>
+</section>
+
+<!-- ═════════════ 5 · POPUP — COULDN'T MOVE ═════════════ -->
+<section>
+  <h2>5 · The popup when the move fails <span class="tag rev">revised</span></h2>
+  <p class="lede">
+    <b>When you see it:</b> rarely, and always for a specific reason — the folder is blocked by macOS, or the file has gone, or the undo record
+    could not be written. The panel <b>stays open</b>; it never closes pretending to have succeeded. It <b>grows to fit the whole reason</b>,
+    however long the folder name, and <b>Accept comes back to life</b> so you can fix the name and try again.
+    <br>
+    These are drawn at their <b>true height</b> — roughly 155&nbsp;px becomes roughly 270&nbsp;px. Revision 2 drew them at the short height,
+    which would have cut the sentence off.
+  </p>
+
+  <div class="tray">
+
+    <!-- blocked folder -->
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field">
+          <span class="fval tend">2026-06_Chase_Statement.pdf</span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="dest"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Tax &amp; Accounting 2026 — Q2</div>
+        <div class="errblock">
+          <div class="errline">Couldn't move it into Tax &amp; Accounting 2026 — Q2. macOS won't let this app write there.</div>
+          <div class="subline">Give it access in Privacy &amp; Security › Files and Folders, then press Accept again.</div>
+          <div class="errbtnline"><button class="pushbtn small">Open System Settings</button></div>
+        </div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept kfocus">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <span class="when">When macOS blocks the folder</span>
+        <b>The blocked-folder failure.</b> Likely the first time you point the app at a folder inside Documents or Desktop. The file was
+        <b>not</b> moved and <b>not</b> renamed — this is a fixable permission problem, and quietly renaming the file in Downloads instead would
+        hide it from you. <b>Open System Settings</b> is a real button you can reach with the keyboard, and the sentence names the path in words
+        too, so it still works if the shortcut ever stops resolving.
+      </div>
+    </div>
+
+    <!-- source gone -->
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field">
+          <span class="fval tend">2026-06_Chase_Statement.pdf</span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="dest"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Invoices</div>
+        <div class="errblock">
+          <div class="errline">Couldn't move it — that file isn't in Downloads any more.</div>
+          <div class="subline">It may have been moved or deleted. Nothing was changed.</div>
+        </div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept kfocus">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <span class="when">When the file vanished first</span>
+        <b>The file is gone.</b> Something moved or deleted it between the suggestion and your click. There is nothing the app can open on your
+        behalf, so there is no button — just the two sentences. Accept stays clickable: the app cannot know the file will not come back
+        (a sync folder, a drive reconnecting), and dimming the button would be it claiming knowledge it does not have.
+      </div>
+    </div>
+
+    <!-- retry after editing -->
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field focused">
+          <span class="fval tend">2026-06 Chase statement<span class="caret"></span></span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="dest"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Tax &amp; Accounting 2026 — Q2</div>
+        <div class="errblock">
+          <div class="errline">Couldn't move it into Tax &amp; Accounting 2026 — Q2. macOS won't let this app write there.</div>
+          <div class="subline">Give it access in Privacy &amp; Security › Files and Folders, then press Accept again.</div>
+          <div class="errbtnline"><button class="pushbtn small">Open System Settings</button></div>
+        </div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept">Accept</button>
+        </div>
+      </div>
+      <div class="cap2">
+        <span class="when">Fixing it and trying again</span>
+        <b>Retrying.</b> The name field is live again after a failure — click it, change the name, press Accept. The message stays on screen until
+        the next attempt, so it is never yanked away while you are reading it.
+      </div>
+    </div>
+
+  </div>
+
+  <ul class="annot">
+    <li><strong>The panel really does resize, and that is the trap for the builder.</strong> The popup measures itself once when it opens. If the error is added later without re-measuring, it is drawn <i>outside</i> the frame and is invisible — the failure would look like nothing happening at all. It must re-measure on every state change and grow <strong>downward from a fixed top edge</strong> over about 200&nbsp;ms, so the file name never shifts under the cursor.</li>
+    <li><strong>The error lives in the panel, not in an alert box.</strong> No system dialog, no bell, no warning triangle, no red banner. Red is on the sentence and nowhere else.</li>
+    <li><strong>Two sentences, never more:</strong> what happened, then what you can do about it. The first names the folder, so “which one?” never has to be asked. The second is in full label colour, because it is an instruction you have to be able to read.</li>
+    <li><strong>“Open System Settings” is a real button on its own line.</strong> Underlined words inside a sentence cannot be reached with the keyboard on macOS, which is why it is a button and not a link.</li>
+    <li><strong>Auto-dismiss stays off in the failed state.</strong> A failure message never fades away on its own — it waits for you.</li>
+    <li><strong>Never an error code.</strong> No “Error 13”, no “EACCES”. Every failure gets a plain sentence naming the real cause, and if the cause is genuinely unknown the app says <i>that</i> rather than guessing.</li>
+    <li><strong>Focus moves to Accept when a failure appears</strong>, so Return retries without touching the mouse.</li>
+  </ul>
+
+  <div class="decide">
+    <span class="k">Founder decision — the button label after a failure</span>
+    I have kept it reading <strong>Accept</strong> in every state, so the app only ever has one verb for “do the thing you suggested”. Switching it
+    to <strong>Try Again</strong> after a failure is a fraction clearer at that exact second, but it adds a second word for the same action and
+    makes the panel feel more like an error dialog. <span class="rec">My recommendation: keep Accept.</span>
+  </div>
+  <div class="decide">
+    <span class="k">Worth knowing — a blocked folder is a failure, not a fallback</span>
+    You already locked this on 28 July and the drawing follows it, but it is worth seeing the consequence: a folder that is <i>gone</i>
+    (deleted, unmounted, no longer in your list) gets the quiet rename-in-place treatment, because there is nothing you could do about it. A folder
+    that macOS is <i>blocking</i> stops and asks, because there is something you can do about it and it takes about fifteen seconds.
+  </div>
+</section>
+
+<!-- ═════════════ 6 · THE DROPDOWN ═════════════ -->
+<section>
+  <h2>6 · The dropdown — one behavioural change, no visual change <span class="tag rev">revised</span></h2>
+  <p class="lede">
+    <b>When you see it:</b> every time you click the menu-bar icon, exactly as today.
+    <b>Nothing here looks different.</b> Same system menu, same translucency, same rows, same two commands at the bottom. There is no history
+    section, no Undo, no buttons on the right, no outcome lines — all of that moved to Settings.
+    <br>
+    The single change is that <b>a file row whose suggestion is ready is now clickable, and clicking it brings that file's popup back</b>.
+    That is how a file you missed — one whose popup timed out, or that arrived while five others did — can still be dealt with.
+  </p>
+
+  <div class="desk">
+    <div class="menubar">
+      <span class="appglyph">
+        <svg width="16" height="13" viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z"/></svg>
+      </span>
+      <span>Tue 28 Jul&nbsp; 11:04</span>
+    </div>
+
+    <!-- A · normal -->
+    <div class="stage">
+      <div class="menu">
+        <div class="mitem">Watching Downloads</div>
+        <div class="msep"></div>
+        <div class="mitem">
+          <div class="fline">
+            <span class="tmid" title="acme-invoice-final-FINAL-v3-signed(3).pdf"><span class="h">acme-invoice-final-FINAL-v3</span><span class="t">-signed(3).pdf</span></span>
+            <span class="fsize">·&nbsp;212 KB</span>
+          </div>
+          <div class="cap">PDF text · 214 words</div>
+          <div class="stat">Suggested: 2026-06 Acme invoice.pdf</div>
+          <div class="dline"><span class="arrow">→</span>
+            <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+            <span class="tend">Invoices</span></div>
+        </div>
+        <div class="mitem">
+          <div class="fline">
+            <span class="tmid" title="statement-2026-07.pdf"><span class="h">statement-2</span><span class="t">026-07.pdf</span></span>
+            <span class="fsize">·&nbsp;96 KB</span>
+          </div>
+          <div class="cap">Reading…</div>
+        </div>
+        <div class="msep"></div>
+        <div class="mcmd">Choose folders…</div>
+        <div class="mcmd">Quit AI File Organizer</div>
+      </div>
+      <div class="stagecap">
+        <span class="when">Every day</span>
+        <b>A — the dropdown as it is today.</b> Identical to what you already have. The top row is clickable now; the “Reading…” row underneath
+        is not, because there is no suggestion to open yet.
+      </div>
+    </div>
+
+    <!-- B · highlighted -->
+    <div class="stage">
+      <div class="menu">
+        <div class="mitem">Watching Downloads</div>
+        <div class="msep"></div>
+        <div class="mitem hot">
+          <div class="fline">
+            <span class="tmid" title="acme-invoice-final-FINAL-v3-signed(3).pdf"><span class="h">acme-invoice-final-FINAL-v3</span><span class="t">-signed(3).pdf</span></span>
+            <span class="fsize">·&nbsp;212 KB</span>
+          </div>
+          <div class="cap">PDF text · 214 words</div>
+          <div class="stat">Suggested: 2026-06 Acme invoice.pdf</div>
+          <div class="dline"><span class="arrow">→</span>
+            <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+            <span class="tend">Invoices</span></div>
+        </div>
+        <div class="mitem">
+          <div class="fline">
+            <span class="tmid" title="statement-2026-07.pdf"><span class="h">statement-2</span><span class="t">026-07.pdf</span></span>
+            <span class="fsize">·&nbsp;96 KB</span>
+          </div>
+          <div class="cap">Reading…</div>
+        </div>
+        <div class="msep"></div>
+        <div class="mcmd">Choose folders…</div>
+        <div class="mcmd">Quit AI File Organizer</div>
+      </div>
+      <div class="stagecap">
+        <span class="when">Pointer or arrow key on the row</span>
+        <b>B — the same row, highlighted.</b> A completely ordinary macOS menu highlight: accent fill across the full width, all four lines turn
+        white, including the folder glyph. Click it, or press Return on it, and the menu closes and that file's popup opens — with the name
+        editable, exactly as if it had just appeared.
+      </div>
+    </div>
+
+    <!-- C · after the move -->
+    <div class="stage">
+      <div class="menu">
+        <div class="mitem">Watching Downloads</div>
+        <div class="msep"></div>
+        <div class="mitem">
+          <div class="fline">
+            <span class="tmid" title="statement-2026-07.pdf"><span class="h">statement-2</span><span class="t">026-07.pdf</span></span>
+            <span class="fsize">·&nbsp;96 KB</span>
+          </div>
+          <div class="cap">PDF text · 88 words</div>
+          <div class="stat">Suggested: 2026-07 Chase statement.pdf</div>
+          <div class="dline"><span class="arrow">→</span>
+            <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+            <span class="tend">Invoices</span></div>
+        </div>
+        <div class="msep"></div>
+        <div class="mcmd">Choose folders…</div>
+        <div class="mcmd">Quit AI File Organizer</div>
+      </div>
+      <div class="stagecap">
+        <span class="when">After the invoice was accepted</span>
+        <b>C — the moved file has left the list.</b> This is the fix for the double-appearance problem. The dropdown lists <b>files sitting in
+        Downloads</b>. Once a file has been moved it is not in Downloads, so it is not in the list — its record lives in Settings › History
+        instead. One event, one place.
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><strong>Which rows are clickable:</strong> only the ones with a settled suggestion — the app has finished reading the file and has a name to propose. Rows still saying “Reading…” or “Thinking…” stay as plain text, because there is nothing yet to open.</li>
+    <li><strong>A failed file keeps its row.</strong> Nothing happened to it: it is still sitting in Downloads under its old name. So it stays in the list and stays clickable, and clicking re-opens the popup with the failure still shown, so you can fix the cause and retry.</li>
+    <li><strong>The menu closing on click is correct here, not a compromise.</strong> The click's whole purpose is to hand you to the popup — which then does the editing, the “Moving…”, the error, and the retry, all in the one place that is already designed for it. The menu does not need to grow a second, weaker version of that.</li>
+    <li><strong>Why this is also the accessible answer.</strong> In a macOS menu, a plain text row is a <i>disabled</i> item: the keyboard skips it and VoiceOver will not read it. Making these rows real buttons is what puts every file in the dropdown within reach of someone who does not use a mouse — which is why this small change is worth making even though nothing looks different.</li>
+    <li><strong>For the builder, one risk to check early:</strong> a menu button whose label is four stacked lines is not something SwiftUI guarantees to render well. Verify it on device before building the rest. If the four-line label collapses, fall back to a two-line label (name, then <i>→ folder</i>) rather than shipping a broken row — and tell me, because that is a visual change and it comes back to me.</li>
+  </ul>
+
+  <div class="decide">
+    <span class="k">Founder decision — “Choose folders…” now under-sells what it opens</span>
+    That row opens the Settings window, which after M6 has three tabs — General, Folders, and History. “Choose folders…” describes one of them.
+    <span class="rec">My recommendation: rename it to “Settings…”.</span> It is a one-word change and it stops the row hiding the place your move
+    history now lives. I have left the drawings saying “Choose folders…” because that string was approved in M4 and I will not change an approved
+    word without you seeing it.
+  </div>
+  <div class="decide">
+    <span class="k">Worth knowing — how you reach your history the first time</span>
+    Today the only route is: menu-bar icon → “Choose folders…” → History tab. That is two clicks and a piece of knowledge. If the rename above
+    happens, it becomes obvious. If you would rather have a direct <b>“Move history…”</b> row in the dropdown, that is one more menu item and I
+    can add it — it is the kind of thing that only becomes clearly right or clearly clutter once you are using the app.
+  </div>
+</section>
+
+<!-- ═════════════ 7 · COLOUR, CONTRAST, AND THE FOUR OPEN NOTES ═════════════ -->
+<section>
+  <h2>7 · Colour, readability, and the four notes left over from the last review <span class="tag rev">revised</span></h2>
+  <p class="lede">
+    Four things were flagged last time and not fixed. All four are answered here. One of them is a judgement call I would like you to look at
+    with your own eyes rather than take my word for.
+  </p>
+
+  <div class="tray" style="display:block; text-align:left; padding:26px 28px">
+    <div class="cstrip">
+
+      <div class="ccard">
+        <h4>1 · Amber and red now come from macOS, not from me</h4>
+        <p>
+          Revision 2 used two colours I picked by hand. If someone switches on <i>Increase Contrast</i> in macOS, a hand-picked colour does not
+          change and stays exactly as hard to read as it was. The app now asks the system for its own red and orange, which macOS darkens
+          automatically. The amber also had almost no margin, so it sits a touch deeper — the same warm colour, easier to read.
+        </p>
+        <div class="swatches">
+          <span class="sw"><span class="lbl">old, hand-picked</span><span style="color:#B25000">Renamed in Downloads</span></span>
+          <span class="sw"><span class="lbl">now, system orange</span><span style="color:var(--warning-text)">Renamed in Downloads</span></span>
+          <span class="sw"><span class="lbl">system red</span><span style="color:var(--error-text)">Couldn't move it</span></span>
+        </div>
+        <p class="ratio">
+          Measured against the window background: amber <b>4.7 → 5.2</b>, red <b>4.9</b>. The bar is 4.5. Colour is never the only signal —
+          every one of these lines is a full sentence that still means the same thing in black and white.
+        </p>
+        <p class="ratio">
+          <b>Look closely and you will notice something:</b> in <i>light</i> mode those two are hard to tell apart. That is not a mistake — it is
+          the honest consequence of using the system's colours. The bright amber macOS shows on a button is far too pale to read as 11&nbsp;px text,
+          so Apple's readable orange is a deep burnt one that sits close to red. In dark mode they separate cleanly. Flip the toggle and compare.
+        </p>
+      </div>
+
+      <div class="ccard">
+        <h4>2 · The small grey text — this is the call I need from you</h4>
+        <p>
+          macOS's standard “secondary” grey measures about <b>3.9</b> against a bar of <b>4.5</b> at these sizes. That grey was carrying real
+          sentences — “Moved to Invoices”, “Undone — back in Downloads”. Rather than darken everything and end up with a wall of black text,
+          I have split it by <i>what the line is for</i>:
+        </p>
+        <div class="listbox" style="margin-top:12px">
+          <div class="hrow">
+            <div class="htext">
+              <div class="l1"><span>2026-06 Acme invoice.pdf</span><span class="htime">11:04</span></div>
+              <div class="l2">Moved to
+                <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+                Invoices &nbsp;←&nbsp; full label colour</div>
+              <div class="l3">was acme-invoice-final-v3.pdf &nbsp;←&nbsp; stays grey</div>
+            </div>
+            <div class="btnwrap"><button class="minibtn">Undo</button></div>
+          </div>
+        </div>
+        <p class="ratio">
+          <b>Full label colour</b> for anything that reports what happened to a file, or that you need in order to decide:
+          “Moved to…”, “Undone…”, “Suggested:…”, “Moving…”, and the instruction under an error.
+          <b>Grey stays</b> for lines that only describe how the app read the file or where it came from: “PDF text · 132 words”, “Reading…”,
+          “was …”, the timestamp, and empty-state hints.
+        </p>
+      </div>
+
+      <div class="ccard">
+        <h4>3 · The footer can no longer jump</h4>
+        <p>
+          Last time, a longer status caption wrapped onto a second line and pushed the buttons down at the exact moment you were clicking one.
+          The footer is now a fixed-height row: the status caption is one line that truncates rather than wraps, the buttons keep their own width,
+          and anything longer to say goes on its own full-width line above the footer. <b>Section 4 shows this fixed, with the worst case drawn.</b>
+        </p>
+        <p class="ratio">
+          The wider rule, now in the design system: a surface may <b>grow</b>, downward from a fixed top edge, over ≤&nbsp;200&nbsp;ms — but it
+          never shrinks and never resizes at the moment of a click.
+        </p>
+      </div>
+
+      <div class="ccard">
+        <h4>4 · One successful move, one place it appears</h4>
+        <p>
+          The old drawing showed a completed move twice: still sitting in the dropdown's file list, <i>and</i> in the history. The rule now is one
+          sentence: <b>the dropdown lists files that are in Downloads.</b> A moved file is not in Downloads, so it leaves the dropdown, and its
+          record is in Settings › History. <b>Section 6 shows the before and after.</b>
+        </p>
+        <p class="ratio">
+          A <b>failed</b> move is not an event — nothing happened to the file — so a failed file keeps its dropdown row and stays clickable for a
+          retry, and also gets a history row explaining why it did not happen. Those are two different statements, both true, and they are the
+          only case where one file is visible in both places at once.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="decide">
+    <span class="k">Founder decision — how dark should the small text be?</span>
+    Three honest ways to answer the 3.9-versus-4.5 finding. <strong>(a) Darken everything:</strong> fully compliant, but the History pane becomes a
+    block of uniform black text and the two-second glance gets slower, because nothing stands out. <strong>(b) Leave it all grey:</strong>
+    prettiest, and macOS does darken it for anyone who turns on Increase Contrast — but at default settings the sentences that matter most stay
+    below the bar. <strong>(c) What I have drawn:</strong> darken the lines that report a consequence, leave the background detail grey.
+    <span class="rec">My recommendation: (c).</span> It fixes the lines where being hard to read would actually cost someone something, and it
+    keeps the hierarchy that lets you find the answer in a glance — which is itself an accessibility property, not just a pretty one.
+    Look at the History pane in section 1 and tell me if it feels too heavy.
+  </div>
+  <div class="decide">
+    <span class="k">Founder decision — amber and red look alike in light mode</span>
+    Because both come from macOS, the readable orange is a deep burnt one and it sits close to red at 11&nbsp;px (dark mode separates them fine).
+    Three ways to go. <strong>(a)</strong> Leave it: the words carry the meaning, and “Renamed in Downloads — Receipts isn't there any more”
+    could not be mistaken for a failure by anyone reading it. <strong>(b)</strong> Pick a hand-mixed amber that separates better — but then it
+    stops responding to the Increase Contrast setting, which is the thing we just fixed. <strong>(c)</strong> Drop amber from the history rows
+    altogether and use ordinary black text, keeping red for genuine failures — on the argument that “renamed in place” is a <i>success</i> with a
+    caveat, not a warning, and colouring it warning-orange overstates it.
+    <span class="rec">My recommendation: (a) now, and (c) is the one I would revisit</span> if you find yourself squinting at the pane in real use.
+    What I will not do is (b).
+  </div>
+  <div class="decide">
+    <span class="k">Deliberately out of scope — the popup's old-name line</span>
+    The small grey line at the top of the popup showing the file's current name measures exactly the same. I have <strong>not</strong> touched it:
+    that panel is your approved M5 design, it is the one in the demo video, and its greyness is doing real work — it is what makes the new name
+    below it read as the answer. <span class="rec">My recommendation: leave it</span> and revisit it as its own small change after M6 ships, when
+    you can judge it on its own instead of buried in a milestone.
+  </div>
+
+  <ul class="annot">
+    <li><strong>For the builder, in one line:</strong> status colours must be the semantic system colours — <code>.systemRed</code> and <code>.systemOrange</code> — never the hex codes printed in this file. The hexes exist only so this page renders in a browser. macOS adjusts system colours under Increase Contrast; a hex does not.</li>
+    <li><strong>Also for the builder:</strong> the shortened filenames in every drawing here are cut by the layout, not by the text. The app must always hold the whole name and let the label do the trimming. Building a shortened string in code destroys the real name for VoiceOver, which would then read “2026-06 Chase Sapp… tement dot pdf” out loud.</li>
+    <li><strong>Every amber and red state is a full sentence</strong> that still makes sense with the colour removed, so all of this works with Differentiate Without Color switched on.</li>
+    <li><strong>No custom background on the dropdown.</strong> It keeps the system menu material so that Reduce Transparency turns it opaque automatically.</li>
+  </ul>
+</section>
+
+<!-- ═════════════ 8 · THE WORDS ═════════════ -->
+<section>
+  <h2>8 · Every new word in this milestone <span class="tag">reference</span></h2>
+  <p class="lede">
+    The exact strings, so nothing gets improvised during the build and so the spoken version can be checked against the written one.
+    House style: short, factual, sentence case, no exclamation marks. <b>{Folder}</b> and <b>{name}</b> are filled in with the real thing.
+  </p>
+  <table class="strings">
+    <tr><th>Where</th><th>What it says</th></tr>
+    <tr><td class="k">Popup, move running</td><td>Moving…</td></tr>
+    <tr><td class="k">Popup, quiet button during a move</td><td>Hide</td></tr>
+    <tr><td class="k">Popup, slow disk (after ~3 s)</td><td>Copying to another disk — this can take a moment. You can hide this.</td></tr>
+    <tr><td class="k">Popup, folder blocked by macOS</td><td>Couldn't move it into {Folder}. macOS won't let this app write there.<br>Give it access in Privacy &amp; Security › Files and Folders, then press Accept again.<br><i>Button:</i> Open System Settings</td></tr>
+    <tr><td class="k">Popup, the file has gone</td><td>Couldn't move it — that file isn't in Downloads any more.<br>It may have been moved or deleted. Nothing was changed.</td></tr>
+    <tr><td class="k">Popup, undo record couldn't be saved</td><td>Couldn't move it — the undo record couldn't be saved.<br>Nothing was moved. Your file is untouched.</td></tr>
+    <tr><td class="k">Settings tab</td><td>History</td></tr>
+    <tr><td class="k">History, heading + explanation</td><td>Move history<br>Every file you have accepted. Undo puts a file back in Downloads under the name it had before.</td></tr>
+    <tr><td class="k">History row, day headers</td><td>Today · Yesterday · Friday 24 July</td></tr>
+    <tr><td class="k">Row — moved</td><td>Moved to {Folder} · was {originalName}</td></tr>
+    <tr><td class="k">Row — renamed in place</td><td>Renamed in Downloads — {Folder} isn't there any more <i>(amber)</i> · was {originalName}</td></tr>
+    <tr><td class="k">Row — move running</td><td>Moving… · to {Folder}</td></tr>
+    <tr><td class="k">Row — undone</td><td>Undone — back in Downloads · had been {finalName} in {Folder}</td></tr>
+    <tr><td class="k">Row — undone, name was taken</td><td>Undone — back in Downloads<br>The name {originalName} was already taken, so it came back as {restoredName}. Nothing was overwritten.</td></tr>
+    <tr><td class="k">Row — undo failed</td><td>Can't undo — that file isn't where the app left it <i>(red; Undo stays offered)</i></td></tr>
+    <tr><td class="k">Row — couldn't move, folder blocked</td><td>Couldn't move — macOS wouldn't let this app write into {Folder} <i>(red)</i><br>Still in Downloads under this name. Nothing was changed.</td></tr>
+    <tr><td class="k">Row — couldn't move, no undo record</td><td>Couldn't move — the undo record couldn't be saved <i>(red)</i><br>Nothing was moved, on purpose: the app will not touch a file it cannot promise to put back.</td></tr>
+    <tr><td class="k">Row — result unknown</td><td>Result unknown — the app stopped mid-move <i>(amber)</i><br>Look in Downloads for {originalName} and in {Folder} for {intendedName}. No Undo is offered, because the app can't confirm what happened.</td></tr>
+    <tr><td class="k">Row action</td><td>Undo</td></tr>
+    <tr><td class="k">History empty — never used</td><td>No moves yet<br>Files you accept appear here, newest first, each with an Undo.</td></tr>
+    <tr><td class="k">History empty — just cleared</td><td>History cleared<br>Your files stayed where they are. Moves made before now can no longer be undone. New moves will appear here.</td></tr>
+    <tr><td class="k">History footer</td><td>Clear History… · {N} moves stored</td></tr>
+    <tr><td class="k">Confirmation</td><td>Clear move history?<br>Your files stay exactly where they are. The record of your last {N} moves is deleted, so those moves can no longer be undone.<br><i>Buttons:</i> Clear History · <b>Cancel</b> (blue default)</td></tr>
+  </table>
+  <ul class="annot">
+    <li><strong>The rule these all follow:</strong> a failure line names <i>what happened</i> and <i>the specific folder or file</i>, then, if there is one, <i>what you can do</i>. “Unknown” is a legitimate answer and is stated as one. The app never guesses, and never offers an Undo for a move it cannot prove happened.</li>
+    <li><strong>Spoken and written must match.</strong> Every one of these strings is also what VoiceOver says — same words, verbatim, checked by a test. An app that shows one sentence and says another is two apps.</li>
+  </ul>
+</section>
+
+<!-- ═════════════ 9 · WHAT I AM ASKING YOU TO APPROVE ═════════════ -->
+<section>
+  <h2>9 · What I need from you</h2>
+  <p class="lede">In plain terms, so you can react without reading the rest twice.</p>
+  <div class="whatschanged" style="margin-top:0">
+    <h3>Approve, or push back on, these</h3>
+    <ol>
+      <li><b>The History pane exists and looks like section 1.</b> Three lines a row, newest first, Undo only where undoing really works.</li>
+      <li><b>The honest failure rows in section 2</b> — especially “Result unknown”, which admits the app does not know what happened and offers no Undo.</li>
+      <li><b>Two different empty states</b> (section 3): “No moves yet” before, “History cleared” after.</li>
+      <li><b>The popup gains Moving… / Hide and the failure states</b> (sections 4 and 5), with its approved M5 anatomy untouched.</li>
+      <li><b>The dropdown's file rows become clickable</b> and re-open the popup (section 6). Nothing else about the dropdown changes.</li>
+      <li><b>The contrast call in section 7</b> — darken the lines that report a consequence, leave the background detail grey.</li>
+    </ol>
+  </div>
+  <div class="decide">
+    <span class="k">The seven places I made a call you might want to overrule</span>
+    <b>1.</b> History is the third tab, after General and Folders. <b>2.</b> The new name is on top of each history row and the old name
+    underneath — the reverse of the popup. <b>3.</b> The slow-disk sentence appears after three seconds and grows the panel by one line.
+    <b>4.</b> The cleared-history message stays until the app restarts, instead of reverting immediately. <b>5.</b> I recommend renaming
+    “Choose folders…” to “Settings…”, but have not drawn it that way. <b>6.</b> The popup still says <b>Accept</b> after a failure, not
+    “Try Again”. <b>7.</b> Amber and red are close together in light mode, and I have chosen to live with it rather than leave the system colours.
+    Any of these is a sentence to change, not a rebuild.
+  </div>
+</section>
+
+
+<script>
+  const btns = document.querySelectorAll('.toggle button');
+  btns.forEach(b => b.addEventListener('click', () => {
+    document.body.classList.toggle('dark', b.dataset.theme === 'dark');
+    btns.forEach(x => x.classList.toggle('active', x === b));
+  }));
+</script>
+</body>
+</html>

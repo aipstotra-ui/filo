@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filo — How it works</title>
+<meta name="description" content="Save a file and Filo does the rest — reading, naming, and filing it, all on device. Four quiet steps, and you stay in charge of every move.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/filo.css">
+</head>
+<body>
+<div style="background:#000000;color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',Helvetica,Arial,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:clip;">
+
+  <nav style="position:sticky;top:0;z-index:60;backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);background:rgba(0,0,0,.62);border-bottom:1px solid rgba(255,255,255,.1);">
+    <div style="max-width:1100px;margin:0 auto;padding:0 22px;height:52px;display:flex;align-items:center;justify-content:space-between;">
+      <a href="index.html" style="font-weight:600;font-size:19px;letter-spacing:-.02em;">Filo</a>
+      <div style="display:flex;align-items:center;gap:24px;">
+        <a href="how-it-works.html" style="font-size:14px;color:#f5f5f7;">How it works</a>
+        <a href="privacy.html" style="font-size:14px;color:#d2d2d7;">Privacy</a>
+        <a href="index.html#waitlist" style="background:#f5f5f7;color:#111;font-weight:600;padding:8px 16px;border-radius:980px;font-size:14px;white-space:nowrap;">Join the waitlist</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header style="text-align:center;padding:clamp(64px,9vw,120px) 22px clamp(48px,7vw,88px);">
+    <span style="display:inline-block;font-size:13px;font-weight:600;color:#2997ff;margin-bottom:18px;">How it works</span>
+    <h1 style="font-size:clamp(2.6rem,7vw,5.2rem);line-height:.99;letter-spacing:-.035em;font-weight:700;margin:0;text-wrap:balance;">Four quiet steps.<br>Nothing leaves your Mac.</h1>
+    <p style="margin:24px auto 0;max-width:40ch;font-size:clamp(1.1rem,2vw,1.35rem);line-height:1.4;color:#a1a1a6;">Save a file and Filo does the rest — reading, naming, and filing it, all on device. You stay in charge of every move.</p>
+  </header>
+
+  <!-- STEPS (light) -->
+  <section style="background:#f5f5f7;color:#1d1d1f;padding:clamp(72px,10vw,130px) 22px;">
+    <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:clamp(36px,6vw,88px);align-items:center;" id="hiwGrid">
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div data-reveal style="padding:22px 4px;border-bottom:1px solid rgba(0,0,0,.1);opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1),transform .6s cubic-bezier(.2,.7,.2,1);">
+          <div style="font-size:14px;font-weight:700;color:#86868b;font-variant-numeric:tabular-nums;">01</div>
+          <h3 style="font-size:1.5rem;font-weight:600;margin:6px 0 0;letter-spacing:-.02em;">It watches your Downloads</h3>
+          <p style="margin:8px 0 0;color:#6e6e73;font-size:1.05rem;">The moment a file lands, Filo notices. Nothing else on your Mac is watched or touched.</p>
+        </div>
+        <div data-reveal style="padding:22px 4px;border-bottom:1px solid rgba(0,0,0,.1);opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1) .06s,transform .6s cubic-bezier(.2,.7,.2,1) .06s;">
+          <div style="font-size:14px;font-weight:700;color:#86868b;font-variant-numeric:tabular-nums;">02</div>
+          <h3 style="font-size:1.5rem;font-weight:600;margin:6px 0 0;letter-spacing:-.02em;">It reads the file, on device</h3>
+          <p style="margin:8px 0 0;color:#6e6e73;font-size:1.05rem;">The text in a PDF, the words in a screenshot — understood by the AI built into macOS. No upload, no network.</p>
+        </div>
+        <div data-reveal style="padding:22px 4px;border-bottom:1px solid rgba(0,0,0,.1);opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1) .12s,transform .6s cubic-bezier(.2,.7,.2,1) .12s;">
+          <div style="font-size:14px;font-weight:700;color:#86868b;font-variant-numeric:tabular-nums;">03</div>
+          <h3 style="font-size:1.5rem;font-weight:600;margin:6px 0 0;letter-spacing:-.02em;">It suggests a name and a folder</h3>
+          <p style="margin:8px 0 0;color:#6e6e73;font-size:1.05rem;">A readable filename and the best match among the folders you've chosen — shown in a small, glanceable popup.</p>
+        </div>
+        <div data-reveal style="padding:22px 4px;opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1) .18s,transform .6s cubic-bezier(.2,.7,.2,1) .18s;">
+          <div style="font-size:14px;font-weight:700;color:#86868b;font-variant-numeric:tabular-nums;">04</div>
+          <h3 style="font-size:1.5rem;font-weight:600;margin:6px 0 0;letter-spacing:-.02em;">You decide</h3>
+          <p style="margin:8px 0 0;color:#6e6e73;font-size:1.05rem;">Accept, edit, or dismiss. Files move only when you accept — and when Filo launches, every move can be undone.</p>
+        </div>
+      </div>
+
+      <!-- recreated popup card -->
+      <div data-reveal style="justify-self:center;width:100%;max-width:380px;opacity:0;transform:translateY(20px);transition:opacity .7s cubic-bezier(.2,.7,.2,1) .1s,transform .7s cubic-bezier(.2,.7,.2,1) .1s;">
+        <div style="text-align:left;background:#ffffff;border:1px solid rgba(0,0,0,.08);border-radius:14px;box-shadow:0 40px 90px -34px rgba(0,0,0,.4),0 0 0 .5px rgba(0,0,0,.05);padding:14px 15px 15px;color:#1d1d1f;">
+          <div style="display:flex;align-items:center;gap:8px;padding-bottom:11px;border-bottom:1px solid rgba(0,0,0,.08);">
+            <span style="width:22px;height:22px;border-radius:6px;background:#1d1d1f;display:grid;place-items:center;flex:0 0 auto;">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M6 3h7l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="#fff" stroke-width="1.7"/><path d="M13 3v5h5" stroke="#fff" stroke-width="1.7"/></svg>
+            </span>
+            <div style="font-size:13px;font-weight:600;">New download</div>
+            <div style="margin-left:auto;font-size:11px;color:#86868b;">just now</div>
+          </div>
+          <div style="margin-top:11px;font-size:13px;font-weight:600;color:rgba(0,0,0,.4);text-decoration:line-through;">invoice_final_v2 (3).pdf</div>
+          <div style="margin-top:5px;font-size:11px;color:#86868b;">PDF text · 214 words</div>
+          <div style="margin-top:11px;font-size:11px;color:#86868b;">Suggested name</div>
+          <div style="margin-top:3px;font-size:14px;font-weight:600;color:#1d1d1f;">Acme Studio — Invoice 1042.pdf</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:#1d1d1f;background:rgba(0,0,0,.05);border-radius:7px;padding:5px 9px;">
+            <svg viewBox="0 0 24 20" width="15" height="13" fill="none"><path d="M2 5A1.5 1.5 0 0 1 3.5 3.5h4l2 2h11A1.5 1.5 0 0 1 22 7v9.5A1.5 1.5 0 0 1 20.5 18h-17A1.5 1.5 0 0 1 2 16.5V5Z" fill="#1d1d1f"/></svg>
+            → Finance / Invoices
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(0,0,0,.08);">
+            <button style="font-size:13px;font-weight:600;padding:7px 15px;border-radius:8px;border:0;background:#0a84ff;color:#fff;cursor:pointer;box-shadow:0 0 0 4px rgba(10,132,255,.28);">Accept</button>
+            <button style="font-size:13px;font-weight:600;padding:7px 15px;border-radius:8px;border:1px solid rgba(0,0,0,.14);background:transparent;color:#1d1d1f;cursor:pointer;">Edit</button>
+            <button style="font-size:13px;font-weight:600;padding:7px 15px;border-radius:8px;border:0;background:transparent;color:#86868b;cursor:pointer;">Dismiss</button>
+          </div>
+        </div>
+        <div style="margin-top:16px;text-align:center;font-size:12px;color:#86868b;">The actual popup, recreated. At launch, every move will be logged and reversible.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section style="padding:clamp(72px,10vw,130px) 22px;">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div data-reveal style="max-width:640px;opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);">
+        <span style="display:inline-block;font-size:13px;font-weight:600;color:#2997ff;margin-bottom:14px;">Getting set up</span>
+        <h2 style="font-size:clamp(1.9rem,4.4vw,3rem);line-height:1.04;letter-spacing:-.03em;font-weight:700;margin:0;">Three things, once.</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:44px;" id="hiwSetup">
+        <div data-reveal style="border-top:1px solid rgba(255,255,255,.14);padding-top:20px;opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1) .05s,transform .6s cubic-bezier(.2,.7,.2,1) .05s;">
+          <div style="font-size:14px;font-weight:700;color:#6e6e73;font-variant-numeric:tabular-nums;margin-bottom:10px;">01</div>
+          <h3 style="font-size:1.2rem;font-weight:600;margin:0;">Run macOS</h3>
+          <p style="margin:8px 0 0;color:#a1a1a6;font-size:.98rem;">Filo uses the on-device model that ships inside macOS.</p>
+        </div>
+        <div data-reveal style="border-top:1px solid rgba(255,255,255,.14);padding-top:20px;opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1) .12s,transform .6s cubic-bezier(.2,.7,.2,1) .12s;">
+          <div style="font-size:14px;font-weight:700;color:#6e6e73;font-variant-numeric:tabular-nums;margin-bottom:10px;">02</div>
+          <h3 style="font-size:1.2rem;font-weight:600;margin:0;">Turn on Apple Intelligence</h3>
+          <p style="margin:8px 0 0;color:#a1a1a6;font-size:.98rem;">Enable it in System Settings. Without it, Filo still runs and handles names by type.</p>
+        </div>
+        <div data-reveal style="border-top:1px solid rgba(255,255,255,.14);padding-top:20px;opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1) .19s,transform .6s cubic-bezier(.2,.7,.2,1) .19s;">
+          <div style="font-size:14px;font-weight:700;color:#6e6e73;font-variant-numeric:tabular-nums;margin-bottom:10px;">03</div>
+          <h3 style="font-size:1.2rem;font-weight:600;margin:0;">Choose your folders</h3>
+          <p style="margin:8px 0 0;color:#a1a1a6;font-size:.98rem;">Pick the folders Filo may suggest as destinations. It only ever suggests — nothing moves on its own.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="text-align:center;padding:clamp(72px,10vw,120px) 22px;">
+    <div data-reveal style="max-width:640px;margin:0 auto;opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);">
+      <h2 style="font-size:clamp(1.9rem,4.6vw,3.2rem);line-height:1.03;letter-spacing:-.03em;font-weight:700;margin:0;">Ready when it launches?</h2>
+      <p style="margin:16px auto 0;color:#a1a1a6;font-size:1.1rem;max-width:38ch;">Join the waitlist and we'll email you the moment Filo is ready.</p>
+      <div style="margin-top:28px;"><a href="index.html#waitlist" style="background:#f5f5f7;color:#111;font-weight:600;padding:14px 28px;border-radius:980px;font-size:16px;white-space:nowrap;">Join the waitlist</a></div>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid rgba(255,255,255,.1);padding:40px 22px;">
+    <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;">
+      <a href="index.html" style="font-weight:600;font-size:17px;letter-spacing:-.02em;">Filo</a>
+      <div style="display:flex;gap:24px;font-size:14px;color:#a1a1a6;">
+        <a href="how-it-works.html">How it works</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="index.html#waitlist">Waitlist</a>
+      </div>
+      <div style="width:100%;font-size:12px;color:#6e6e73;">Private, on-device file organizing for macOS. © 2026 Filo.</div>
+    </div>
+  </footer>
+</div>
+<script src="js/how-it-works.js"></script>
+</body>
+</html>

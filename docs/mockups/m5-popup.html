@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M5 mockup — Suggestion popup</title>
+<style>
+  /* ————— Design tokens (mirrored in docs/design-system.md) ————— */
+  body {
+    --accent:        #007AFF;
+    --label-1:       rgba(0,0,0,0.85);
+    --label-2:       rgba(0,0,0,0.50);
+    --label-3:       rgba(0,0,0,0.28);
+    --sep:           rgba(0,0,0,0.08);
+    --warning-text:  #B25000;
+    --error-text:    #D70015;
+    --window-bg:     #F5F4F5;
+    --content-bg:    #FFFFFF;
+    --menubar-bg:    rgba(255,255,255,0.55);
+    --menubar-press: rgba(0,0,0,0.10);
+    --tab-active:    rgba(0,0,0,0.07);
+    --privacy-bg:    rgba(0,122,255,0.06);
+    --page-bg:       #ECEBEA;
+    /* mockup-only staging surfaces */
+    --screen-bg:     linear-gradient(165deg,#EEECE9 0%,#DBD8D4 100%);
+    --tray-bg:       #E6E4E1;
+    /* popup-specific, derived from the tokens above */
+    --field-bg:      #FFFFFF;
+    --field-border:  rgba(0,0,0,0.18);
+    --focus-ring:    rgba(0,122,255,0.30);
+    --accept-shadow: 0 0.5px 1px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.24);
+    --shadow-win:    0 18px 50px rgba(0,0,0,0.28), 0 0 0 0.5px rgba(0,0,0,0.15);
+    --shadow-screen: 0 22px 60px rgba(0,0,0,0.30), 0 0 0 0.5px rgba(0,0,0,0.14);
+  }
+  body.dark {
+    --accent:        #0A84FF;
+    --label-1:       rgba(255,255,255,0.86);
+    --label-2:       rgba(255,255,255,0.55);
+    --label-3:       rgba(255,255,255,0.28);
+    --sep:           rgba(255,255,255,0.10);
+    --warning-text:  #FFB340;
+    --error-text:    #FF6961;
+    --window-bg:     #2A2A2C;
+    --content-bg:    rgba(255,255,255,0.055);
+    --menubar-bg:    rgba(30,30,34,0.55);
+    --menubar-press: rgba(255,255,255,0.16);
+    --tab-active:    rgba(255,255,255,0.11);
+    --privacy-bg:    rgba(10,132,255,0.13);
+    --page-bg:       #1C1C1E;
+    --screen-bg:     linear-gradient(165deg,#222126 0%,#161519 100%);
+    --tray-bg:       #1E1D20;
+    --field-bg:      rgba(255,255,255,0.05);
+    --field-border:  rgba(255,255,255,0.14);
+    --focus-ring:    rgba(10,132,255,0.42);
+    --accept-shadow: 0 0.5px 1px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.16);
+    --shadow-win:    0 18px 50px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.12);
+    --shadow-screen: 0 22px 60px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.10);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: var(--page-bg);
+    color: var(--label-1);
+    padding: 32px 24px 72px;
+    transition: background 0.2s ease;
+  }
+
+  /* ————— Page scaffolding (not part of the app UI) ————— */
+  .page-head { max-width: 980px; margin: 0 auto 8px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  .page-head h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .page-head .sub { font-size: 12px; color: var(--label-2); }
+  .toggle { margin-left:auto; display:flex; background: var(--tab-active); border-radius: 7px; padding: 2px; }
+  .toggle button {
+    font: inherit; font-size: 12px; color: var(--label-2);
+    border: none; background: transparent; padding: 3px 14px; border-radius: 5px; cursor: pointer;
+  }
+  .toggle button.active { background: var(--content-bg); color: var(--label-1); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .note { max-width: 980px; margin: 0 auto 30px; font-size: 12px; color: var(--label-2); line-height: 1.55; }
+  .note strong { color: var(--label-1); font-weight: 600; }
+
+  section { max-width: 980px; margin: 0 auto 46px; }
+  section > h2 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  section > p.lede { font-size: 12px; color: var(--label-2); margin-bottom: 16px; line-height: 1.5; }
+  .annot { font-size: 12px; color: var(--label-2); margin-top: 14px; line-height: 1.55; padding-left: 18px; }
+  .annot li { margin-bottom: 3px; }
+  .annot li strong { color: var(--label-1); font-weight: 600; }
+
+  .decide {
+    max-width: 980px; margin: 14px auto 0;
+    background: var(--privacy-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 11px 14px;
+    font-size: 12px; color: var(--label-1); line-height: 1.55;
+  }
+  .decide .k { display:block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); font-weight: 700; margin-bottom: 3px; }
+  .decide + .decide { margin-top: 8px; }
+
+  .tag { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase;
+    color: var(--accent); border:1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 4px; padding: 1px 5px; vertical-align: 1px; margin-left: 6px; }
+
+  /* ————— Hero: the popup on a desktop, top-right ————— */
+  .screen {
+    position: relative;
+    width: 100%; max-width: 760px; height: 468px;
+    margin: 0 auto;
+    border-radius: 14px; overflow: hidden;
+    background: var(--screen-bg);
+    box-shadow: var(--shadow-screen);
+  }
+  .sysbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 26px;
+    display: flex; align-items: center; gap: 17px; padding: 0 12px;
+    font-size: 12px; color: var(--label-1);
+    background: var(--menubar-bg);
+    -webkit-backdrop-filter: blur(24px) saturate(170%); backdrop-filter: blur(24px) saturate(170%);
+    z-index: 2;
+  }
+  .sysbar .brand { font-weight: 600; }
+  .sysbar .mi { color: var(--label-2); }
+  .sysbar .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .sysbar .appmark {
+    display: flex; align-items: center; padding: 2px 7px; border-radius: 5px;
+    background: var(--menubar-press);
+  }
+  .sysbar .appmark svg { display: block; color: var(--label-1); }
+  .pin { position: absolute; top: 44px; right: 16px; z-index: 3; }
+  .pin .drop { position:absolute; right: 90px; top: -18px; font-size: 11px; color: var(--label-2);
+    display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .pin .drop svg { color: var(--label-3); }
+
+  /* ————— Trays for the state gallery ————— */
+  .tray {
+    background: var(--tray-bg);
+    border-radius: 14px;
+    padding: 34px 28px;
+    display: flex; flex-wrap: wrap; gap: 36px 30px;
+    justify-content: center; align-items: flex-start;
+  }
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 312px; }
+  .slot .cap2 { font-size: 11px; color: var(--label-2); text-align: center; line-height: 1.45; }
+  .slot .cap2 b { color: var(--label-1); font-weight: 600; }
+
+  /* ═══════════ THE POPUP ═══════════ */
+  .popup {
+    width: 312px;
+    background: var(--window-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow-win);
+    padding: 14px 16px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .pop-head { font-size: 11px; color: var(--label-2); margin-bottom: 11px; letter-spacing: 0.1px; }
+
+  .orig { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--label-2); margin-bottom: 6px; }
+  .orig .dico { flex: none; width: 11px; height: 13px; color: var(--label-3); }
+  .orig .oname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .field {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--field-bg);
+    border: 1px solid var(--field-border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    box-shadow: inset 0 1px 1.5px rgba(0,0,0,0.04);
+  }
+  .field .fval { flex: 1; font-size: 13px; color: var(--label-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .field .fval.placeholder { color: var(--label-3); }
+  .field .pencil { flex: none; width: 12px; height: 12px; color: var(--label-3); }
+  .field.focused { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+  .caret { display: inline-block; width: 1.5px; height: 14px; background: var(--label-1); vertical-align: -2px; margin: 0 0 0 0.5px; animation: blink 1.06s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .dest { font-size: 11px; color: var(--label-1); margin-top: 8px; display: flex; align-items: center; gap: 5px; }
+  .dest .arrow { color: var(--label-2); }
+  .dest .fico { width: 13px; height: 11px; flex: none; }
+  .nomatch { font-size: 11px; color: var(--label-2); margin-top: 8px; }
+  .hint2 { font-size: 11px; color: var(--label-2); margin-top: 7px; }
+  .why { font-size: 11px; color: var(--label-2); margin-top: 8px; line-height: 1.4; }
+
+  .pop-foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 14px; }
+  .btn { font: inherit; font-size: 13px; border-radius: 6px; cursor: pointer; border: none; line-height: 1.3; }
+  .btn-dismiss { background: transparent; color: var(--label-2); padding: 5px 12px; }
+  .btn-dismiss:hover { background: var(--tab-active); color: var(--label-1); }
+  .btn-accept { background: var(--accent); color: #fff; padding: 5px 16px; box-shadow: var(--accept-shadow); }
+  .btn-accept.disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+
+  /* state 4 — honest acknowledgment */
+  .confirm { text-align: center; padding: 5px 4px 3px; }
+  .confirm .c1 { font-size: 13px; color: var(--label-1); }
+  .confirm .c2 { font-size: 11px; color: var(--label-2); margin-top: 4px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<!-- shared folder-icon gradient (identical to the m4 mockup) -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="foldg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#74B9FF"/><stop offset="1" stop-color="#3E8EF0"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="page-head">
+  <h1>M5 — Suggestion popup</h1>
+  <span class="sub">mockup for approval · nothing here is live</span>
+  <div class="toggle">
+    <button data-theme="light" class="active">Light</button>
+    <button data-theme="dark">Dark</button>
+  </div>
+</div>
+<p class="note">
+  A small panel slides in at the top-right of the screen once a new download has been understood on-device. It shows the file's
+  current name, a suggested better name you can edit, and a suggested destination folder — with <strong>Accept</strong> and
+  <strong>Dismiss</strong>. Ignore it and it fades after about 15 seconds, doing nothing. A file is only ever touched when you click Accept.
+  <br><br>
+  <strong>Important for this milestone:</strong> in M5 even Accept moves nothing yet — the actual rename and move arrive next milestone.
+  So the panel's Accept is designed to be honest about that (see the "After Accept" panel in section&nbsp;2). If the AI has no suggestion at all, no popup appears —
+  the app simply stays quiet.
+</p>
+
+<!-- ============ A · HERO ============ -->
+<section>
+  <h2>1 · The match — hero state</h2>
+  <p class="lede">This is the first thing anyone sees in the demo. The panel sits just under the menu-bar icon, top-right, floating over whatever you were doing.</p>
+  <div class="screen">
+    <div class="sysbar">
+      <span class="brand">Preview</span>
+      <span class="mi">File</span><span class="mi">Edit</span><span class="mi">View</span><span class="mi">Go</span>
+      <span class="right">
+        <span class="appmark" title="AI File Organizer in the menu bar">
+          <svg width="16" height="13" viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z"/></svg>
+        </span>
+        <span>Mon 20 Jul&nbsp; 14:33</span>
+      </span>
+    </div>
+    <div class="pin">
+      <span class="drop">slides in from here
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6h11M9 3l3.2 3-3.2 3"/></svg>
+      </span>
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field">
+          <span class="fval">2026-06_Chase_Statement.pdf</span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="dest"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Invoices</div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept">Accept</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="annot">
+    <li>Glance path, top to bottom: the dimmed current name (what it is now) → the bright editable field (the proposed name) → the blue folder (where it would go) → <strong>Accept</strong>, the one filled button.</li>
+    <li><strong>Editing is inline.</strong> There is no separate Edit button — the suggested name lives in a real text field. Click it and type. The faint pencil is only a hint that the AI's guess is yours to change.</li>
+    <li><strong>Dismiss is deliberately quiet</strong> (borderless, grey) so Accept is unmistakably the primary action. It never looks like an ad or a system alert: opaque window surface, app name at the top, no marketing, no big icon.</li>
+    <li>The blue folder icon appears only on the destination line — the same rule as the menu, so "where it goes" is findable at a glance.</li>
+  </ul>
+  <div class="decide">
+    <span class="k">Motion — please picture it</span>
+    Entrance: slides in ~12&nbsp;px from the right while fading up, ≤&nbsp;250&nbsp;ms, ease-out — no bounce, no spring. Exit reverses the same way. Auto-dismiss: a plain fade-out after ~15&nbsp;s of no interaction. Under the system "Reduce Motion" setting it simply cross-fades in place (no slide). Return accepts, Esc dismisses.
+  </div>
+</section>
+
+<!-- ============ B · MORE STATES ============ -->
+<section>
+  <h2>2 · The other states</h2>
+  <p class="lede">Same panel, four situations. Flip the Light / Dark toggle at the top to check both appearances.</p>
+  <div class="tray">
+
+    <!-- 2 · no destination -->
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">IMG_4821.HEIC</span>
+        </div>
+        <div class="field">
+          <span class="fval">Whiteboard sprint notes.heic</span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="nomatch">No folder fits — leaving it in Downloads</div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept">Accept</button>
+        </div>
+      </div>
+      <div class="cap2"><b>No destination.</b> A good name, but no folder is a confident match, so it says so plainly.</div>
+    </div>
+
+    <!-- 3a · editing, valid -->
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field focused">
+          <span class="fval">2026-06_Chase_Statement<span class="caret"></span></span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="dest"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Invoices</div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept">Accept</button>
+        </div>
+      </div>
+      <div class="cap2"><b>Editing.</b> Field focused with the caret and the accent focus ring. A valid name keeps Accept live.</div>
+    </div>
+
+    <!-- 3b · editing, empty → Accept disabled -->
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field focused">
+          <span class="fval placeholder"><span class="caret"></span></span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="hint2">Name can't be empty</div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept disabled">Accept</button>
+        </div>
+      </div>
+      <div class="cap2"><b>Empty name.</b> We block empty or invalid names, so Accept dims out until there's a name to hand off.</div>
+    </div>
+
+    <!-- 4 · after accept (honest ack) -->
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="confirm">
+          <div class="c1">Suggestion accepted</div>
+          <div class="c2">No file has been moved or renamed yet.</div>
+        </div>
+      </div>
+      <div class="cap2"><b>After Accept</b> <span class="tag">decide</span> A brief, honest acknowledgment — then the panel closes. No checkmark, no "Moved to Invoices."</div>
+    </div>
+
+  </div>
+  <div class="decide">
+    <span class="k">Founder decision — the post-Accept moment</span>
+    In this milestone Accept performs no file action, so the panel must not pretend it did. My recommendation is the calm confirmation above: the content cross-fades to <strong>"Suggestion accepted"</strong> for about 1.2&nbsp;s, then the panel slides out. The small second line ("No file has been moved or renamed yet") is optional — it makes the honesty explicit but is a touch more downbeat on camera. The one thing we will <strong>not</strong> do is show a checkmark or "Moved to Invoices," because that would be untrue until next milestone. If you'd rather the demo look fully finished, the alternative is simply not clicking Accept on camera and demoing up to the popup. Your call on: (a) keep the confirmation, (b) drop the second line, or (c) skip Accept in the video.
+  </div>
+</section>
+
+<!-- ============ C · OPTIONAL RATIONALE VARIANT ============ -->
+<section>
+  <h2>3 · Optional — a one-line reason <span class="tag">optional</span></h2>
+  <p class="lede">The primary popup shows name + destination only, matching the menu's privacy choice. This variant adds a single quiet line explaining why — for you to consider, not part of the primary design.</p>
+  <div class="tray">
+    <div class="slot">
+      <div class="popup">
+        <div class="pop-head">AI File Organizer</div>
+        <div class="orig">
+          <svg class="dico" viewBox="0 0 12 14" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><path d="M2.4 1h4l3.2 3.2v7.9a.9.9 0 0 1-.9.9H2.4a.9.9 0 0 1-.9-.9V1.9A.9.9 0 0 1 2.4 1z"/><path d="M6.3 1v3.3h3.3"/></svg>
+          <span class="oname">Scan 2026-07-20 14.33.pdf</span>
+        </div>
+        <div class="field">
+          <span class="fval">2026-06_Chase_Statement.pdf</span>
+          <svg class="pencil" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 1.7l1.6 1.6-6.2 6.2-2 .4.4-2 6.2-6.2z"/></svg>
+        </div>
+        <div class="dest"><span class="arrow">→</span>
+          <svg class="fico" viewBox="0 0 20 16"><path d="M2 3c0-1.1.9-2 2-2h4.2c.5 0 .9.2 1.2.5L10.8 3H16c1.1 0 2 .9 2 2v8c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V3z" fill="url(#foldg)"/></svg>
+          Invoices</div>
+        <div class="why">Looks like a Chase statement from June 2026</div>
+        <div class="pop-foot">
+          <button class="btn btn-dismiss">Dismiss</button>
+          <button class="btn btn-accept">Accept</button>
+        </div>
+      </div>
+      <div class="cap2"><b>With rationale line.</b> One extra caption under the destination.</div>
+    </div>
+  </div>
+  <div class="decide">
+    <span class="k">Founder decision — show a reason, or not</span>
+    A "why" line can build trust in the demo — it shows the AI actually understood the file. The trade-offs: it adds reading time (works against the under-2-second glance) and it puts a hint of the file's contents on screen, which the menu deliberately avoids. My default stays name + destination only; adopt this only if the added trust is worth the extra line.
+  </div>
+</section>
+
+<script>
+  const btns = document.querySelectorAll('.toggle button');
+  btns.forEach(b => b.addEventListener('click', () => {
+    document.body.classList.toggle('dark', b.dataset.theme === 'dark');
+    btns.forEach(x => x.classList.toggle('active', x === b));
+  }));
+</script>
+</body>
+</html>
